@@ -81,7 +81,7 @@ export default function AdminDashboard({ profiles, tests, testColumns, analytics
                                             <tr key={s.roll}>
                                                 <td className="font-bold">{idx + 1}</td>
                                                 <td>
-                                                    <img src={s.photo || 'https://via.placeholder.com/48'} className="avatar" alt="pic" />
+                                                    <img src={s.photo || 'https://via.placeholder.com/48'} className="avatar" alt="pic" referrerPolicy="no-referrer" />
                                                 </td>
                                                 <td>
                                                     <div className="font-bold">{s.name}</div>
@@ -119,7 +119,7 @@ export default function AdminDashboard({ profiles, tests, testColumns, analytics
                                             <tr key={s.roll}>
                                                 <td className="font-bold">{rankings.attemptedCount - rankings.bottom10.length + idx + 1}</td>
                                                 <td>
-                                                    <img src={s.photo || 'https://via.placeholder.com/48'} className="avatar" alt="pic" />
+                                                    <img src={s.photo || 'https://via.placeholder.com/48'} className="avatar" alt="pic" referrerPolicy="no-referrer" />
                                                 </td>
                                                 <td>
                                                     <div className="font-bold">{s.name}</div>

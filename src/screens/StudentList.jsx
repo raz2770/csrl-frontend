@@ -53,7 +53,7 @@ export default function StudentList({ profiles }) {
                             {filtered.map(p => (
                                 <tr key={p.ROLL_KEY} onClick={() => navigate(`/profile/${p.ROLL_KEY}`)} style={{ cursor: 'pointer' }}>
                                     <td>
-                                        <img src={p["STUDENT PHOTO URL"] || 'https://via.placeholder.com/48'} className="avatar" alt="student" />
+                                        <img src={p["STUDENT PHOTO URL"] || 'https://via.placeholder.com/48'} className="avatar" alt="student" referrerPolicy="no-referrer" />
                                     </td>
                                     <td className="font-bold">{p.ROLL_KEY}</td>
                                     <td>{p["STUDENT'S NAME"]}</td>

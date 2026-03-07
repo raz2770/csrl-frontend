@@ -73,7 +73,7 @@ export default function StudentProfile({ profiles, tests, testColumns, auth }) {
         <div className="flex flex-col gap-4">
             {/* Section 1: Header */}
             <div className="card flex items-center gap-4">
-                <img src={profile["STUDENT PHOTO URL"] || 'https://via.placeholder.com/120'} alt="Student" className="avatar" style={{ width: '120px', height: '120px', borderRadius: '12px' }} />
+                <img src={profile["STUDENT PHOTO URL"] || 'https://via.placeholder.com/120'} alt="Student" className="avatar" style={{ width: '120px', height: '120px', borderRadius: '12px' }} referrerPolicy="no-referrer" />
                 <div style={{ flex: 1 }}>
                     <h1 className="text-2xl font-bold flex items-center gap-2">
                         {profile["STUDENT'S NAME"]} <span className="badge badge-primary text-sm">{profile.CATEGORY}</span>
