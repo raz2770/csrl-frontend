@@ -12,7 +12,7 @@ export default function Login({ onLogin, profiles }) {
         setError('');
 
         if (tab === 'admin') {
-            if (password === 'admin123') { // Simple hardcoded auth
+            if (password === 'Gail@321') { // Simple hardcoded auth
                 onLogin({ role: 'admin', rollNo: null });
             } else {
                 setError('Invalid admin credentials.');
@@ -70,7 +70,7 @@ export default function Login({ onLogin, profiles }) {
                                 className="input mt-2"
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
-                                placeholder="Enter admin password (admin123)"
+                                placeholder="Enter admin password"
                                 required
                             />
                         </div>
