@@ -15,7 +15,35 @@ function App() {
   const [error, setError] = useState(null);
 
   // Auth state: role can be 'admin', 'student', or null
-  const [auth, setAuth] = useState({ role: null, rollNo: null });
+  const [auth, setAuth] = useState(() => {
+    const savedAuth = localStorage.getItem('gailAuth');
+    if (savedAuth) {
+      try {
+        const parsed = JSON.parse(savedAuth);
+        const oneHour = 60 * 60 * 1000;
+        if (new Date().getTime() - parsed.timestamp < oneHour) {
+          return parsed.auth;
+        } else {
+          localStorage.removeItem('gailAuth');
+        }
+      } catch (e) {
+        localStorage.removeItem('gailAuth');
+      }
+    }
+    return { role: null, rollNo: null };
+  });
+
+  const handleSetAuth = (newAuth) => {
+    setAuth(newAuth);
+    if (newAuth.role) {
+      localStorage.setItem('gailAuth', JSON.stringify({
+        auth: newAuth,
+        timestamp: new Date().getTime()
+      }));
+    } else {
+      localStorage.removeItem('gailAuth');
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -51,13 +79,13 @@ function App() {
   return (
     <BrowserRouter>
       <div className="app-container">
-        {auth.role && <Navbar auth={auth} setAuth={setAuth} onRefresh={loadData} />}
+        {auth.role && <Navbar auth={auth} setAuth={handleSetAuth} onRefresh={loadData} />}
 
         <main className="main-content">
           <Routes>
             <Route
               path="/login"
-              element={!auth.role ? <Login onLogin={setAuth} profiles={profiles} /> : <Navigate to={auth.role === 'admin' ? '/admin' : `/profile/${auth.rollNo}`} />}
+              element={!auth.role ? <Login onLogin={handleSetAuth} profiles={profiles} /> : <Navigate to={auth.role === 'admin' ? '/admin' : `/profile/${auth.rollNo}`} />}
             />
 
             {/* Admin Routes */}
