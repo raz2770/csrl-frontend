@@ -60,12 +60,20 @@ function cleanText(text) {
 }
 
 // Analytics Helpers
+export function getJeePercentile(obj) {
+  if (!obj) return null;
+  const key = Object.keys(obj).find(k => 
+    k.toLowerCase().includes('jee main') && k.toLowerCase().includes('percentile')
+  );
+  return key ? obj[key] : null;
+}
+
 export function calculateAnalytics(profiles, tests, testColumns) {
   const totalStudents = profiles.length;
   
   // Calculate average JEE percentile if available
   const jeeScores = profiles
-    .map(p => parseFloat(p['JEE Main (2026) Phase 1 percentile']))
+    .map(p => parseFloat(getJeePercentile(p)))
     .filter(val => !isNaN(val) && val > 0);
   
   const avgJee = jeeScores.length > 0 

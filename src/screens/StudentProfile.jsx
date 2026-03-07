@@ -2,6 +2,7 @@ import React from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { User, MapPin, Target, BookOpen, AlertCircle, CreditCard, Calendar, Phone, Award } from 'lucide-react';
+import { getJeePercentile } from '../api';
 
 export default function StudentProfile({ profiles, tests, testColumns, auth }) {
     const { id } = useParams();
@@ -90,7 +91,7 @@ export default function StudentProfile({ profiles, tests, testColumns, auth }) {
                         <Award size={16} /> JEE %ile
                     </div>
                     <div className="text-2xl font-bold text-success mt-1">
-                        {profile['JEE Main (2026) Phase 1 percentile'] || 'N/A'}
+                        {getJeePercentile(profile) || 'N/A'}
                     </div>
                 </div>
             </div>
@@ -166,11 +167,11 @@ export default function StudentProfile({ profiles, tests, testColumns, auth }) {
                             <div className="text-muted font-bold text-sm">Target College / Branch</div>
                             <div className="text-lg font-bold mt-1">{profile["FUTURE COLLEGE (TARGET)"] || 'Not Set'}</div>
                         </div>
-                        {profile['JEE Main (2026) Phase 1 percentile'] && (
+                        {getJeePercentile(profile) && (
                             <div style={{ background: '#f1f5f9', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                                 <div className="text-sm font-bold text-muted">JEE Main 2026 Phase 1</div>
                                 <div className="text-2xl text-primary font-bold mt-1">
-                                    {profile['JEE Main (2026) Phase 1 percentile']} %ile
+                                    {getJeePercentile(profile)} %ile
                                 </div>
                             </div>
                         )}

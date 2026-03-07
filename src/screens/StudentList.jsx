@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Users } from 'lucide-react';
+import { getJeePercentile } from '../api';
 
 export default function StudentList({ profiles, tests }) {
     const [search, setSearch] = useState('');
@@ -61,7 +62,7 @@ export default function StudentList({ profiles, tests }) {
                                         <span className="badge badge-primary">{p.CATEGORY}</span>
                                     </td>
                                     <td className="font-bold text-success">
-                                        {p['JEE Main (2026) Phase 1 percentile'] || 'N/A'}
+                                        {getJeePercentile(p) || 'N/A'}
                                     </td>
                                     <td>
                                         <button className="btn btn-secondary text-sm">View Profile</button>
