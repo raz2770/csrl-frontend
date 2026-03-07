@@ -12,9 +12,17 @@ export async function fetchAppData() {
   // Clean data and create relations
   const profiles = profileData.map(p => {
     const rollNo = cleanText(p['ROLL NO.']);
+    let photoUrl = p['STUDENT PHOTO URL'];
+    if (photoUrl && photoUrl.includes('drive.google.com')) {
+      const idMatch = photoUrl.match(/id=([a-zA-Z0-9_-]+)/) || photoUrl.match(/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (idMatch && idMatch[1]) {
+        photoUrl = `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1000`;
+      }
+    }
     return {
       ...p,
-      ROLL_KEY: rollNo
+      ROLL_KEY: rollNo,
+      'STUDENT PHOTO URL': photoUrl
     };
   }).filter(p => p.ROLL_KEY);
 
