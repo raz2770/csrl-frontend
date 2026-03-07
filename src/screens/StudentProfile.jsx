@@ -90,7 +90,7 @@ export default function StudentProfile({ profiles, tests, testColumns, auth }) {
                         <Award size={16} /> JEE %ile
                     </div>
                     <div className="text-2xl font-bold text-success mt-1">
-                        {studentTests['JEE Main (2026) Phase 1 percentile'] || 'N/A'}
+                        {profile['JEE Main (2026) Phase 1 percentile'] || 'N/A'}
                     </div>
                 </div>
             </div>

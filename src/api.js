@@ -64,8 +64,8 @@ export function calculateAnalytics(profiles, tests, testColumns) {
   const totalStudents = profiles.length;
   
   // Calculate average JEE percentile if available
-  const jeeScores = tests
-    .map(t => parseFloat(t['JEE Main (2026) Phase 1 percentile ']))
+  const jeeScores = profiles
+    .map(p => parseFloat(p['JEE Main (2026) Phase 1 percentile']))
     .filter(val => !isNaN(val) && val > 0);
   
   const avgJee = jeeScores.length > 0 

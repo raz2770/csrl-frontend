@@ -61,7 +61,7 @@ export default function StudentList({ profiles, tests }) {
                                         <span className="badge badge-primary">{p.CATEGORY}</span>
                                     </td>
                                     <td className="font-bold text-success">
-                                        {(tests && tests.find(t => t.ROLL_KEY === p.ROLL_KEY)?.['JEE Main (2026) Phase 1 percentile']) || 'N/A'}
+                                        {p['JEE Main (2026) Phase 1 percentile'] || 'N/A'}
                                     </td>
                                     <td>
                                         <button className="btn btn-secondary text-sm">View Profile</button>
