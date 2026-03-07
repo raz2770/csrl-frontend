@@ -95,7 +95,7 @@ function App() {
             />
             <Route
               path="/students"
-              element={auth.role === 'admin' ? <StudentList profiles={profiles} /> : <Navigate to="/login" />}
+              element={auth.role === 'admin' ? <StudentList profiles={profiles} tests={tests} /> : <Navigate to="/login" />}
             />
 
             {/* Student/Profile Route */}

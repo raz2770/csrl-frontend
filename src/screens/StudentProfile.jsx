@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { User, MapPin, Target, BookOpen, AlertCircle, CreditCard, Calendar, Phone } from 'lucide-react';
+import { User, MapPin, Target, BookOpen, AlertCircle, CreditCard, Calendar, Phone, Award } from 'lucide-react';
 
 export default function StudentProfile({ profiles, tests, testColumns, auth }) {
     const { id } = useParams();
@@ -87,10 +87,10 @@ export default function StudentProfile({ profiles, tests, testColumns, auth }) {
                 </div>
                 <div className="text-right">
                     <div className="text-muted text-sm font-bold flex items-center gap-1 justify-end">
-                        <CreditCard size={16} /> Credit
+                        <Award size={16} /> JEE %ile
                     </div>
                     <div className="text-2xl font-bold text-success mt-1">
-                        {profile["STUDENT CREDIT AMOUNT"] || '0'}
+                        {studentTests['JEE Main (2026) Phase 1 percentile'] || 'N/A'}
                     </div>
                 </div>
             </div>

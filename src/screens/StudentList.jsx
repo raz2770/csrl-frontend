@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Users } from 'lucide-react';
 
-export default function StudentList({ profiles }) {
+export default function StudentList({ profiles, tests }) {
     const [search, setSearch] = useState('');
     const navigate = useNavigate();
 
@@ -45,7 +45,7 @@ export default function StudentList({ profiles }) {
                                 <th>Roll No</th>
                                 <th>Name</th>
                                 <th>Category</th>
-                                <th>Credit Amount</th>
+                                <th>JEE Percentile</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -60,7 +60,9 @@ export default function StudentList({ profiles }) {
                                     <td>
                                         <span className="badge badge-primary">{p.CATEGORY}</span>
                                     </td>
-                                    <td className="font-bold text-success">{p["STUDENT CREDIT AMOUNT"] || '0'}</td>
+                                    <td className="font-bold text-success">
+                                        {(tests && tests.find(t => t.ROLL_KEY === p.ROLL_KEY)?.['JEE Main (2026) Phase 1 percentile']) || 'N/A'}
+                                    </td>
                                     <td>
                                         <button className="btn btn-secondary text-sm">View Profile</button>
                                     </td>
