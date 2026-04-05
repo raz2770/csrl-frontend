@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CENTERS } from '../config/centers';
-import { loginApi } from '../api';
-import { GraduationCap, Building2, ShieldCheck, Loader2 } from 'lucide-react';
+import { loginApi } from '../services/dataService';
+import { useAuth } from '../context/AuthContext';
 
-export default function Login({ setAuth }) {
-  const [role, setRole] = useState('STUDENT'); // STUDENT, CENTRE, ADMIN
+export default function Login() {
+  const { login } = useAuth();
+  const [role, setRole] = useState('STUDENT');
   const [center, setCenter] = useState(Object.keys(CENTERS)[0]);
-  const [idParam, setIdParam] = useState(''); // Roll No, Username
+  const [idParam, setIdParam] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,81 +18,89 @@ export default function Login({ setAuth }) {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       const creds = {
         role: role.toLowerCase(),
         id: role === 'STUDENT' || role === 'ADMIN' ? idParam.trim() : center,
         password: role !== 'STUDENT' ? password : ''
       };
-
       const resp = await loginApi(creds);
-      
       if (resp.success) {
-        setAuth({ 
-          role: resp.role.toUpperCase(), 
-          id: role === 'STUDENT' || role === 'ADMIN' ? idParam.trim() : center, 
-          name: resp.name, 
-          centerCode: resp.centerCode, 
-          token: resp.token 
+        login({
+          role: resp.role.toUpperCase(),
+          id: role === 'STUDENT' || role === 'ADMIN' ? idParam.trim() : center,
+          name: resp.name,
+          centerCode: resp.centerCode,
+          token: resp.token
         });
         navigate('/');
       } else {
         setError(resp.message || 'Authentication failed');
       }
-    } catch (err) {
-      console.error(err);
-      setError('Invalid credentials or backend server is not running.');
+    } catch {
+      setError('Invalid credentials or backend is offline.');
     } finally {
       setLoading(false);
     }
   };
 
+  const roles = [
+    { key: 'STUDENT', icon: '🎓', label: 'Student' },
+    { key: 'CENTRE', icon: '🏢', label: 'Centre' },
+    { key: 'ADMIN', icon: '🛡️', label: 'Admin' },
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 fade-in zoom-in duration-300">
-        <div className="bg-[#0033A0] p-8 text-center text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-[#FFAA00] opacity-20 blur-2xl"></div>
-          <div className="mx-auto w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-4 text-[#0033A0] p-1 overflow-hidden">
-            <img src="/logo.png" alt="CSRL Logo" className="w-full h-full object-contain" />
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, var(--csrl-blue-dark) 0%, var(--csrl-blue) 60%, #2563b0 100%)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px'
+    }}>
+      <div style={{ width: '100%', maxWidth: '420px' }}>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <div style={{
+            width: '72px', height: '72px', background: '#fff', borderRadius: '18px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 14px', padding: '10px',
+            boxShadow: '0 8px 32px rgba(0,0,0,.2)'
+          }}>
+            <img src="/logo.png" alt="CSRL" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
-          <h2 className="text-2xl font-bold tracking-tight">Welcome Back</h2>
-          <p className="text-blue-200 mt-1 text-sm">Performance Management System</p>
+          <h1 style={{ color: '#fff', fontSize: '22px', fontWeight: 800, letterSpacing: '-0.5px' }}>
+            CSRL Performance Hub
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,.65)', fontSize: '13px', marginTop: '4px' }}>
+            Student Management System
+          </p>
         </div>
 
-        <div className="p-6">
-          <div className="flex bg-slate-100 p-1 rounded-lg mb-6 shadow-inner">
-            <button
-              type="button"
-              className={`flex-1 py-2 text-sm font-medium rounded-md flex items-center justify-center gap-2 transition-all ${role === 'STUDENT' ? 'bg-white shadow text-[#0033A0]' : 'text-slate-500 hover:text-slate-700'}`}
-              onClick={() => setRole('STUDENT')}
-            >
-              <GraduationCap size={16}/> Student
-            </button>
-            <button
-              type="button"
-              className={`flex-1 py-2 text-sm font-medium rounded-md flex items-center justify-center gap-2 transition-all ${role === 'CENTRE' ? 'bg-white shadow text-[#0033A0]' : 'text-slate-500 hover:text-slate-700'}`}
-              onClick={() => setRole('CENTRE')}
-            >
-              <Building2 size={16}/> Centre
-            </button>
-            <button
-              type="button"
-              className={`flex-1 py-2 text-sm font-medium rounded-md flex items-center justify-center gap-2 transition-all ${role === 'ADMIN' ? 'bg-white shadow text-[#0033A0]' : 'text-slate-500 hover:text-slate-700'}`}
-              onClick={() => setRole('ADMIN')}
-            >
-              <ShieldCheck size={16}/> Admin
-            </button>
+        {/* Card */}
+        <div className="card" style={{ padding: '28px' }}>
+          {/* Role Tabs */}
+          <div className="tab-bar" style={{ width: '100%', marginBottom: '20px' }}>
+            {roles.map(r => (
+              <button
+                key={r.key}
+                type="button"
+                style={{ flex: 1, justifyContent: 'center' }}
+                className={`tab ${role === r.key ? 'active' : ''}`}
+                onClick={() => setRole(r.key)}
+              >
+                {r.icon} {r.label}
+              </button>
+            ))}
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Centre selector */}
             {role !== 'ADMIN' && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Select Centre</label>
-                <select 
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#FFAA00] focus:border-[#0033A0] outline-none transition-all"
+                <label className="lbl">Select Centre</label>
+                <select
+                  className="inp select"
                   value={center}
-                  onChange={(e) => setCenter(e.target.value)}
+                  onChange={e => setCenter(e.target.value)}
                 >
                   {Object.keys(CENTERS).map(c => (
                     <option key={c} value={c}>{CENTERS[c].name} ({c})</option>
@@ -100,59 +109,63 @@ export default function Login({ setAuth }) {
               </div>
             )}
 
+            {/* Roll / Username */}
             {role === 'STUDENT' && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Roll Number</label>
-                <input 
-                  type="text" 
-                  autoFocus
-                  required
+                <label className="lbl">Roll Number</label>
+                <input
+                  type="text" autoFocus required
                   placeholder="e.g. 24001"
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#FFAA00] focus:border-[#0033A0] outline-none transition-all"
+                  className="inp"
                   value={idParam}
-                  onChange={(e) => setIdParam(e.target.value)}
+                  onChange={e => setIdParam(e.target.value)}
                 />
               </div>
             )}
-
             {role === 'ADMIN' && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
-                <input 
-                  type="text" 
-                  autoFocus
-                  required
-                  placeholder="Admin Username"
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#FFAA00] focus:border-[#0033A0] outline-none transition-all"
+                <label className="lbl">Username</label>
+                <input
+                  type="text" autoFocus required
+                  placeholder="Admin username"
+                  className="inp"
                   value={idParam}
-                  onChange={(e) => setIdParam(e.target.value)}
+                  onChange={e => setIdParam(e.target.value)}
                 />
               </div>
             )}
 
+            {/* Password */}
             {(role === 'CENTRE' || role === 'ADMIN') && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-                <input 
-                  type="password" 
-                  required
-                  placeholder="Enter Password"
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#FFAA00] focus:border-[#0033A0] outline-none transition-all"
+                <label className="lbl">Password</label>
+                <input
+                  type="password" required
+                  placeholder="Enter password"
+                  className="inp"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={e => setPassword(e.target.value)}
                 />
               </div>
             )}
 
-            {error && <div className="text-red-500 text-sm p-3 bg-red-50 rounded-lg border border-red-100">{error}</div>}
+            {error && (
+              <div style={{
+                background: 'var(--red-bg)', color: 'var(--red)',
+                padding: '10px 14px', borderRadius: 'var(--radius-sm)',
+                fontSize: '13px', fontWeight: 500
+              }}>
+                ⚠️ {error}
+              </div>
+            )}
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loading}
-              className="w-full bg-[#0033A0] hover:bg-blue-800 text-white font-bold py-3 px-4 rounded-lg shadow-[0_4px_14px_0_rgba(0,51,160,0.39)] hover:shadow-[0_6px_20px_rgba(0,51,160,0.23)] hover:-translate-y-[1px] transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+              className="btn btn-primary"
+              style={{ width: '100%', justifyContent: 'center', fontSize: '15px', padding: '12px', marginTop: '4px' }}
             >
-              {loading && <Loader2 size={18} className="animate-spin" />}
-              {loading ? 'Authenticating...' : 'Sign In'}
+              {loading ? '⏳ Signing in...' : '🔐 Sign In'}
             </button>
           </form>
         </div>

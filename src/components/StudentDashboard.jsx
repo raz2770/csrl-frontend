@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import StudentProfileView from './StudentProfileView';
-import { fetchStudentData } from '../api';
+import { fetchStudentData } from '../services/dataService';
+import { useAuth } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
-export default function StudentDashboard({ auth }) {
+export default function StudentDashboard() {
+  const { user: auth } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -22,8 +24,20 @@ export default function StudentDashboard({ auth }) {
   );
 
   if (!data || !data.profiles || data.profiles.length === 0) {
-     return <div className="p-8 text-center text-slate-500 text-lg">No profile data could be fetched for this roll number.</div>;
+    return <div style={{ padding:'32px', textAlign:'center', color:'var(--gray-400)', fontSize:15 }}>No profile data found for this roll number.</div>;
   }
 
-  return <StudentProfileView profile={data.profiles[0]} studentTests={data.tests[0] || {}} testColumns={data.testColumns} />;
+  return (
+    <div className="fade-in">
+      <div className="page-header">
+        <div>
+          <h1>👤 My Profile</h1>
+          <p>{data.profiles[0]?.["STUDENT'S NAME"]} · {auth.id}</p>
+        </div>
+      </div>
+      <div className="content">
+        <StudentProfileView profile={data.profiles[0]} studentTests={data.tests[0] || {}} testColumns={data.testColumns} />
+      </div>
+    </div>
+  );
 }

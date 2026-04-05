@@ -1,56 +1,117 @@
-import { Outlet, useNavigate } from 'react-router-dom';
-import { LogOut, User } from 'lucide-react';
+import { Outlet, useNavigate, useOutletContext } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useState } from 'react';
 
-export default function Layout({ auth, setAuth }) {
+const NAV_ITEMS = {
+  ADMIN: [
+    { label: 'Dashboard', icon: '🏠', id: 'dashboard' },
+    { label: 'Rankings', icon: '🏆', id: 'rankings' },
+    { label: 'Student Database', icon: '👥', id: 'students' },
+  ],
+  CENTRE: [
+    { label: 'Dashboard', icon: '🏠', id: 'dashboard' },
+    { label: 'Rankings', icon: '🏆', id: 'rankings' },
+    { label: 'My Students', icon: '👥', id: 'students' },
+  ],
+  STUDENT: [
+    { label: 'My Profile', icon: '👤', id: 'profile' },
+    { label: 'My Scores', icon: '📋', id: 'scores' },
+  ],
+};
+
+export default function Layout() {
+  const { user: auth, logout } = useAuth();
   const navigate = useNavigate();
+  const [activePage, setActivePage] = useState('dashboard');
 
   const handleLogout = () => {
-    setAuth(null);
+    logout();
     navigate('/login');
   };
 
+  const navItems = NAV_ITEMS[auth?.role] || [];
+  const initials = (auth?.name || auth?.id || 'U')
+    .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-[#0033A0] text-white shadow-xl relative z-10">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="bg-white h-12 w-20 flex items-center justify-center rounded-sm shadow-inner rounded-br-2xl p-1">
-              <img src="/logo.png" alt="CSRL" className="h-full object-contain" />
+    <div className="layout">
+      {/* Sidebar */}
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center p-1 shadow">
+              <img src="/logo.png" alt="CSRL" className="w-full h-full object-contain" />
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-wide leading-tight">Centre For Social Responsibility & Leadership</h1>
-              <p className="text-xs text-blue-200 tracking-wider">STUDENT PERFORMANCE HUB</p>
+              <div className="text-white font-bold text-[13px] leading-tight">CSRL</div>
+              <div className="text-[11px] leading-tight" style={{ color: 'rgba(255,255,255,.55)' }}>Performance Hub</div>
             </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-xs bg-[#FFAA00] text-[#0033A0] px-3 py-1 rounded-full font-bold shadow-sm uppercase tracking-wide">
-              {auth.role}
-            </span>
-            <div className="flex items-center gap-2 border-l border-white/20 pl-4 min-w-[120px]">
-              <User size={18} className="text-blue-200" />
-              <div className="flex flex-col">
-                <span className="font-semibold text-sm truncate max-w-[150px]">{auth.name || auth.id}</span>
-                {auth.role === 'STUDENT' && <span className="text-xs text-blue-200">{auth.id}</span>}
-              </div>
-            </div>
-            <button 
-              onClick={handleLogout}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors ml-2"
-              title="Logout"
-            >
-              <LogOut size={20} />
-            </button>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 animate-in fade-in duration-500">
-        <div className="container mx-auto">
-          <Outlet />
+        <nav className="sidebar-nav">
+          {navItems.map(item => (
+            <div
+              key={item.id}
+              className={`nav-item${activePage === item.id ? ' active' : ''}`}
+              onClick={() => setActivePage(item.id)}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              {item.label}
+            </div>
+          ))}
+        </nav>
+
+        {/* User footer */}
+        <div className="px-[18px] py-4" style={{ borderTop: '1px solid rgba(255,255,255,.1)' }}>
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="avatar w-8 h-8 text-sm">{initials}</div>
+            <div className="flex-1 min-w-0">
+              <div className="text-white text-[13px] font-semibold truncate">{auth?.name || auth?.id}</div>
+              <div className="text-[11px]" style={{ color: 'rgba(255,255,255,.5)' }}>{auth?.role}</div>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="btn btn-sm w-full justify-center"
+            style={{ background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.8)', border: '1px solid rgba(255,255,255,.15)' }}
+          >
+            🚪 Sign Out
+          </button>
         </div>
-      </main>
+      </aside>
+
+      {/* Main */}
+      <div className="main">
+        {/* Mobile topbar */}
+        <div className="flex items-center justify-between px-4 py-3 bg-white border-b md:hidden" style={{ boxShadow: 'var(--shadow)' }}>
+          <div className="flex items-center gap-2">
+            <img src="/logo.png" alt="CSRL" className="h-8 w-auto" />
+            <span className="font-bold text-sm" style={{ color: 'var(--csrl-blue)' }}>CSRL</span>
+          </div>
+          {/* Mobile bottom nav */}
+          <div className="flex gap-1">
+            {navItems.map(item => (
+              <button
+                key={item.id}
+                onClick={() => setActivePage(item.id)}
+                className="btn btn-sm"
+                style={{
+                  background: activePage === item.id ? 'var(--csrl-blue)' : 'var(--gray-100)',
+                  color: activePage === item.id ? '#fff' : 'var(--gray-600)',
+                  padding: '6px 10px',
+                  border: 'none'
+                }}
+              >
+                {item.icon}
+              </button>
+            ))}
+          </div>
+          <button onClick={handleLogout} className="btn btn-sm btn-outline">Out</button>
+        </div>
+
+        <Outlet context={{ activePage, setActivePage }} />
+      </div>
     </div>
   );
 }

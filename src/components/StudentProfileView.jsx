@@ -1,220 +1,203 @@
 import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { UserCircle2, MapPin, Hash, BrainCircuit, Target, BookOpen, User, Calendar, Phone, Award } from 'lucide-react';
-import { getJeePercentile } from '../api';
+import { getJeePercentile } from '../services/dataService';
+
+function InfoRow({ label, value }) {
+  return (
+    <div className="info-row">
+      <span className="info-label">{label}</span>
+      <span className="info-val">{value || '—'}</span>
+    </div>
+  );
+}
 
 export default function StudentProfileView({ profile, studentTests, testColumns }) {
-  const { testList, weakSubject, chartData } = useMemo(() => {
+  const { mappedTestList, weakSubject, chartData } = useMemo(() => {
     const testsMap = {};
     const subjectTotals = {};
     const subjectCounts = {};
 
-    testColumns.forEach(col => {
+    (testColumns || []).forEach(col => {
       const parts = col.split(' ');
-      let subject = 'Score';
-      let testName = col;
-      
-      if (parts.length > 1) {
-        subject = parts[0];
-        testName = parts.slice(1).join(' ');
-      }
-        
-      if (!testsMap[testName]) {
-        testsMap[testName] = { name: testName, marks: {}, total: 0 };
-      }
-      
-      const rawMark = studentTests[col];
-        if (rawMark !== undefined && rawMark !== null && rawMark !== '' && String(rawMark) !== '0' && String(rawMark).toLowerCase() !== 'absent') {
-          const m = parseFloat(rawMark);
-          if (!isNaN(m)) {
-             testsMap[testName].marks[subject] = m;
-             testsMap[testName].total += m;
-             
-             subjectTotals[subject] = (subjectTotals[subject] || 0) + m;
-             subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
-          }
-        } else {
-             testsMap[testName].marks[subject] = 'A';
+      const subject = parts.length > 1 ? parts[0] : 'Score';
+      const testName = parts.length > 1 ? parts.slice(1).join(' ') : col;
+
+      if (!testsMap[testName]) testsMap[testName] = { name: testName, marks: {}, total: 0 };
+
+      const rawMark = (studentTests || {})[col];
+      if (rawMark !== undefined && rawMark !== null && rawMark !== '' &&
+          String(rawMark) !== '0' && String(rawMark).toLowerCase() !== 'absent') {
+        const m = parseFloat(rawMark);
+        if (!isNaN(m)) {
+          testsMap[testName].marks[subject] = m;
+          testsMap[testName].total += m;
+          subjectTotals[subject] = (subjectTotals[subject] || 0) + m;
+          subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
         }
+      } else {
+        testsMap[testName].marks[subject] = 'A';
+      }
     });
 
     const mappedTestList = Object.values(testsMap);
-    
-    let weakSub = 'N/A';
-    let minAvg = Infinity;
+
+    let weakSub = 'N/A', minAvg = Infinity;
     Object.keys(subjectTotals).forEach(sub => {
       const avg = subjectTotals[sub] / subjectCounts[sub];
-      if (avg < minAvg && subjectCounts[sub] > 0) {
-        minAvg = avg;
-        weakSub = sub;
-      }
+      if (avg < minAvg && subjectCounts[sub] > 0) { minAvg = avg; weakSub = sub; }
     });
 
-    const mappedChartData = mappedTestList.map(t => ({
-      name: t.name,
-      ...t.marks,
-      Total: t.total
-    }));
-
-    return { testList: mappedTestList, weakSubject: weakSub, chartData: mappedChartData };
+    const chartData = mappedTestList.map(t => ({ name: t.name, ...t.marks, Total: t.total }));
+    return { mappedTestList, weakSubject: weakSub, chartData };
   }, [studentTests, testColumns]);
 
-  if (!profile) return <div className="p-8 text-center text-slate-500">Loading Profile Data...</div>;
+  if (!profile) return <div style={{ padding:'32px', textAlign:'center', color:'var(--gray-400)' }}>Loading profile...</div>;
 
-  const photo = profile["STUDENT PHOTO URL"];
+  const photo = profile['STUDENT PHOTO URL'];
   const jeePercentile = getJeePercentile(profile);
+  const catKey = (profile.CATEGORY || 'general').toLowerCase();
 
   return (
-    <div className="space-y-6">
-      
-      {/* Top Banner Row */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center gap-6">
-        {photo ? (
-          <img src={photo} alt={profile["STUDENT'S NAME"]} className="w-32 h-32 rounded-xl object-cover shadow-md border border-slate-200" referrerPolicy="no-referrer" />
-        ) : (
-          <div className="w-32 h-32 bg-slate-200 rounded-xl flex items-center justify-center text-slate-400">
-             <UserCircle2 size={64} />
+    <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
+      {/* Banner */}
+      <div className="card" style={{ display:'flex', alignItems:'center', gap:'20px', flexWrap:'wrap' }}>
+        {photo
+          ? <img src={photo} alt={profile["STUDENT'S NAME"]} referrerPolicy="no-referrer"
+              style={{ width:96, height:96, borderRadius:12, objectFit:'cover', border:'2px solid var(--gray-100)', flexShrink:0 }} />
+          : <div style={{ width:96, height:96, borderRadius:12, background:'var(--csrl-blue-light)', color:'var(--csrl-blue)',
+              display:'flex', alignItems:'center', justifyContent:'center', fontSize:36, fontWeight:700, flexShrink:0 }}>
+              {(profile["STUDENT'S NAME"]||'?')[0]}
+            </div>
+        }
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap', marginBottom:'6px' }}>
+            <h2 style={{ fontSize:20, fontWeight:800, color:'var(--csrl-blue)' }}>{profile["STUDENT'S NAME"] || 'Unknown'}</h2>
+            <span className={`badge badge-${catKey}`}>{profile.CATEGORY || 'General'}</span>
+          </div>
+          <div style={{ fontSize:13, color:'var(--gray-600)', display:'flex', gap:'16px', flexWrap:'wrap' }}>
+            <span>📋 <strong>{profile['ROLL NO.'] || profile.ROLL_KEY}</strong></span>
+            <span>📍 {profile.centerCode || '—'}</span>
+            <span>📱 {profile['Mobile No.'] || '—'}</span>
+          </div>
+        </div>
+        {jeePercentile && (
+          <div style={{ textAlign:'center', background:'var(--green-bg)', borderRadius:10, padding:'16px 24px', flexShrink:0 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--green)', textTransform:'uppercase', letterSpacing:1 }}>JEE Percentile</div>
+            <div style={{ fontSize:28, fontWeight:900, color:'var(--green)', marginTop:4 }}>{jeePercentile}</div>
           </div>
         )}
-        <div className="flex-1 text-center md:text-left">
-           <h3 className="text-2xl font-bold text-[#0033A0] flex items-center justify-center md:justify-start gap-3">
-              {profile["STUDENT'S NAME"] || 'No Name'}
-              <span className="bg-[#0033A0] text-xs text-white px-2 py-1 rounded tracking-widest uppercase">{profile.CATEGORY || 'General'}</span>
-           </h3>
-           <p className="text-slate-500 mt-1 flex items-center justify-center md:justify-start gap-2">
-             <Hash size={16}/> Roll No: <strong className="text-slate-700">{profile["ROLL NO."] || profile.ROLL_KEY}</strong> | 
-             <MapPin size={16}/> {profile.centerCode || 'Assigned Centre'}
-           </p>
-           <p className="text-slate-500 mt-1 flex items-center justify-center md:justify-start gap-2">
-             <Phone size={16}/> Mobile: {profile["Mobile No."] || 'N/A'}
-           </p>
-        </div>
-        <div className="text-center md:text-right bg-slate-50 p-4 rounded-xl border border-slate-100 min-w-[150px]">
-           <div className="text-slate-500 text-sm font-bold flex items-center justify-center md:justify-end gap-1">
-               <Award size={16} /> Auto JEE %ile
-           </div>
-           <div className="text-3xl font-black text-green-600 mt-1">
-               {jeePercentile || 'N/A'}
-           </div>
-        </div>
       </div>
 
-      {/* Details Grid */}
-      <div className="grid md:grid-cols-2 gap-6">
-        
-        {/* Family & Personal */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-           <h3 className="text-lg font-bold text-slate-800 border-b pb-2 mb-4 flex items-center gap-2"><User size={20} className="text-[#0033A0]" /> Family & Personal Details</h3>
-           <div className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-slate-500">Gender:</span> <span className="font-medium text-slate-800">{profile.GENDER}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">DOB:</span> <span className="font-medium text-slate-800">{profile["DATE OF BIRTH"]}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Father's Name:</span> <span className="font-medium text-slate-800">{profile["FATHER'S NAME"]}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Mother's Name:</span> <span className="font-medium text-slate-800">{profile["MOTHER'S NAME"]}</span></div>
-              <div className="pt-2 border-t text-xs text-slate-500 mt-2">
-                 <MapPin size={14} className="inline mr-1" />
-                 {profile["PARMANENT ADDRESS"] || 'No Address'}, {profile.DISTRICT}, {profile.STATE} - {profile.PINCODE}
-              </div>
-           </div>
-        </div>
-
-        {/* Education History */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-           <h3 className="text-lg font-bold text-slate-800 border-b pb-2 mb-4 flex items-center gap-2"><BookOpen size={20} className="text-[#0033A0]" /> Education History</h3>
-           <div className="space-y-4">
-              <div className="text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">
-                 <div className="font-bold text-[#0033A0] mb-2 border-b border-slate-200 pb-1">10th Details</div>
-                 <div className="flex justify-between mt-1"><span className="text-slate-500">School:</span> <span className="font-medium text-right max-w-[200px] truncate" title={profile["10th SCHOOL NAME"]}>{profile["10th SCHOOL NAME"]}</span></div>
-                 <div className="flex justify-between mt-1"><span className="text-slate-500">Board:</span> <span className="font-medium">{profile["10th BOARD"]}</span></div>
-                 <div className="flex justify-between mt-1"><span className="text-slate-500">Percentage:</span> <span className="font-medium">{profile["10th Precentage"]}</span></div>
-              </div>
-              <div className="text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">
-                 <div className="font-bold text-[#0033A0] mb-2 border-b border-slate-200 pb-1">12th Details</div>
-                 <div className="flex justify-between mt-1"><span className="text-slate-500">School:</span> <span className="font-medium text-right max-w-[200px] truncate" title={profile["12th SCHOOL NAME"]}>{profile["12th SCHOOL NAME"]}</span></div>
-                 <div className="flex justify-between mt-1"><span className="text-slate-500">Board:</span> <span className="font-medium">{profile["12th BOARD"]}</span></div>
-                 <div className="flex justify-between mt-1"><span className="text-slate-500">Percentage:</span> <span className="font-medium">{profile["12th Precentage"]}</span></div>
-              </div>
-           </div>
-        </div>
-
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-6">
-          {/* Target & Weak subjects */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-full flex flex-col justify-between">
-             <div>
-               <h3 className="text-lg font-bold text-slate-800 border-b pb-2 mb-4 flex items-center gap-2"><Target size={20} className="text-green-600" /> Future Targets</h3>
-               <div className="mb-6">
-                 <div className="text-slate-500 text-sm font-medium">Target College / Branch</div>
-                 <div className="text-lg font-bold text-slate-800 mt-1">{profile["FUTURE COLLEGE (TARGET)"] || 'Not Set'}</div>
-               </div>
-             </div>
-
-             <div>
-               <h3 className="text-lg font-bold text-slate-800 border-b pb-2 mb-4 flex items-center gap-2"><BrainCircuit size={20} className="text-red-500" /> Weak Subject Analysis</h3>
-               <div className="bg-red-50 p-4 rounded-xl border border-red-100 mb-4">
-                 <div className="text-sm font-bold text-red-400 uppercase tracking-widest mb-1">Manual Assessment</div>
-                 <div className="text-xl font-bold text-red-700">{profile["WEAK SUBJECT (MANUAL)"] || profile["WEAK SUBJECT"] || 'Not Specified'}</div>
-                 {profile["WEAK SUBJECT NOTES"] && <div className="text-sm mt-1 text-red-600">{profile["WEAK SUBJECT NOTES"]}</div>}
-               </div>
-
-               <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
-                 <span className="text-sm font-medium text-slate-600">Auto Detected from Tests:</span>
-                 <span className="bg-slate-200 text-slate-800 px-3 py-1 rounded font-bold">{weakSubject}</span>
-               </div>
-             </div>
+      {/* Info Grid */}
+      <div className="grid-2">
+        <div className="card">
+          <div className="section-title">👨‍👩‍👧 Personal & Family</div>
+          <InfoRow label="Gender" value={profile.GENDER} />
+          <InfoRow label="Date of Birth" value={profile['DATE OF BIRTH']} />
+          <InfoRow label="Father's Name" value={profile["FATHER'S NAME"]} />
+          <InfoRow label="Mother's Name" value={profile["MOTHER'S NAME"]} />
+          <InfoRow label="Mobile" value={profile['Mobile No.']} />
+          <div style={{ marginTop:10, fontSize:12, color:'var(--gray-400)', lineHeight:1.5 }}>
+            📍 {profile['PARMANENT ADDRESS'] || '—'}, {profile.DISTRICT}, {profile.STATE}{profile.PINCODE ? ` - ${profile.PINCODE}` : ''}
           </div>
-          
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-72">
-             <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Calendar size={20} className="text-[#FFAA00]" /> Performance Trend</h3>
-             <div className="h-48">
-               <ResponsiveContainer width="100%" height="100%">
-                 <LineChart data={chartData}>
-                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748B'}} />
-                   <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748B'}} width={30} />
-                   <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
-                   <Legend />
-                   <Line type="monotone" dataKey="Total" stroke="#0033A0" strokeWidth={3} dot={{r: 4, fill: '#0033A0'}} activeDot={{r: 6}} />
-                 </LineChart>
-               </ResponsiveContainer>
-             </div>
+        </div>
+
+        <div className="card">
+          <div className="section-title">🎓 Education History</div>
+          <div style={{ background:'var(--gray-50)', borderRadius:8, padding:'12px', marginBottom:10 }}>
+            <div style={{ fontWeight:700, color:'var(--csrl-blue)', fontSize:13, marginBottom:8 }}>10th Standard</div>
+            <InfoRow label="School" value={profile['10th SCHOOL NAME']} />
+            <InfoRow label="Board" value={profile['10th BOARD']} />
+            <InfoRow label="Percentage" value={profile['10th Precentage']} />
           </div>
+          <div style={{ background:'var(--gray-50)', borderRadius:8, padding:'12px' }}>
+            <div style={{ fontWeight:700, color:'var(--csrl-blue)', fontSize:13, marginBottom:8 }}>12th Standard</div>
+            <InfoRow label="School" value={profile['12th SCHOOL NAME']} />
+            <InfoRow label="Board" value={profile['12th BOARD']} />
+            <InfoRow label="Percentage" value={profile['12th Precentage']} />
+          </div>
+        </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-6 border-b border-slate-100">
-           <h3 className="text-lg font-bold text-slate-800">Complete Test Records</h3>
+      {/* Target & Analysis */}
+      <div className="grid-2">
+        <div className="card" style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
+          <div className="section-title">🎯 Target & Goals</div>
+          <div>
+            <div className="lbl">Target College / Branch</div>
+            <div style={{ fontWeight:700, fontSize:15, color:'var(--gray-800)', marginTop:4 }}>
+              {profile['FUTURE COLLEGE (TARGET)'] || 'Not specified'}
+            </div>
+          </div>
+          <div className="divider" style={{ margin:'4px 0' }} />
+          <div className="section-title" style={{ marginBottom:6 }}>🧠 Weak Subject Analysis</div>
+          <div style={{ display:'flex', gap:'10px', flexWrap:'wrap' }}>
+            <div style={{ flex:1, background:'var(--red-bg)', borderRadius:8, padding:'12px' }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'var(--red)', textTransform:'uppercase', marginBottom:4 }}>Manual Assessment</div>
+              <div style={{ fontWeight:700, fontSize:15, color:'var(--red)' }}>
+                {profile['WEAK SUBJECT (MANUAL)'] || profile['WEAK SUBJECT'] || 'Not specified'}
+              </div>
+            </div>
+            <div style={{ flex:1, background:'var(--gray-50)', borderRadius:8, padding:'12px', border:'1px solid var(--gray-200)' }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'var(--gray-600)', textTransform:'uppercase', marginBottom:4 }}>Auto Detected</div>
+              <div style={{ fontWeight:700, fontSize:15, color:'var(--gray-800)' }}>{weakSubject}</div>
+            </div>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+
+        <div className="card">
+          <div className="section-title">📈 Performance Trend</div>
+          <div style={{ height:220 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ left:-20, bottom:20 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--gray-100)" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill:'var(--gray-400)', fontSize:11 }} angle={-35} textAnchor="end" />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill:'var(--gray-400)', fontSize:11 }} width={28} />
+                <Tooltip contentStyle={{ borderRadius:8, border:'none', boxShadow:'var(--shadow-lg)', fontSize:12 }} />
+                <Legend wrapperStyle={{ fontSize:12 }} />
+                <Line type="monotone" dataKey="Total" stroke="var(--csrl-blue)" strokeWidth={2.5} dot={{ r:4 }} activeDot={{ r:6 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Full Test Records */}
+      <div className="card">
+        <div className="section-title">📋 Complete Test Records</div>
+        <div style={{ overflowX:'auto' }}>
+          <table className="tbl">
+            <thead>
               <tr>
-                <th className="px-6 py-4 font-semibold uppercase tracking-wider text-xs w-[30%]">Test Name</th>
-                <th className="px-6 py-4 font-semibold uppercase tracking-wider text-xs">Subject Breakup</th>
-                <th className="px-6 py-4 font-semibold uppercase tracking-wider text-xs w-[15%] text-right">Total Score</th>
+                <th style={{ width:'35%' }}>Test Name</th>
+                <th>Subject Breakdown</th>
+                <th style={{ textAlign:'right', width:'12%' }}>Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {testList.map((test, i) => (
-                <tr key={i} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-slate-800 align-middle">{test.name}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2 flex-wrap">
+            <tbody>
+              {mappedTestList.map((test, i) => (
+                <tr key={i}>
+                  <td style={{ fontWeight:600 }}>{test.name}</td>
+                  <td>
+                    <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                       {Object.entries(test.marks).map(([sub, mark]) => (
-                        <span key={sub} className="bg-white border border-slate-200 px-2 py-1.5 rounded text-xs inline-flex items-center shadow-sm">
-                          <span className="text-slate-500 mr-2 font-medium">{sub}:</span>
-                          <span className={mark === 'A' ? 'text-red-500 font-bold' : 'font-bold text-[#0033A0]'}>{mark}</span>
+                        <span key={sub} style={{
+                          display:'inline-flex', alignItems:'center', gap:4,
+                          padding:'3px 8px', borderRadius:4, fontSize:12,
+                          background: mark === 'A' ? 'var(--red-bg)' : 'var(--csrl-blue-light)',
+                          border: `1px solid ${mark === 'A' ? '#fca5a5' : '#bbd0f8'}`
+                        }}>
+                          <span style={{ color:'var(--gray-600)', fontWeight:500 }}>{sub}:</span>
+                          <span style={{ fontWeight:700, color: mark === 'A' ? 'var(--red)' : 'var(--csrl-blue)' }}>{mark}</span>
                         </span>
                       ))}
                     </div>
                   </td>
-                  <td className="px-6 py-4 font-bold text-[#0033A0] text-right text-base align-middle">{test.total}</td>
+                  <td style={{ textAlign:'right', fontWeight:800, color:'var(--csrl-blue)', fontSize:16 }}>{test.total}</td>
                 </tr>
               ))}
-              {testList.length === 0 && (
-                <tr>
-                  <td colSpan="3" className="px-6 py-8 text-center text-slate-500">No test records found.</td>
-                </tr>
+              {mappedTestList.length === 0 && (
+                <tr><td colSpan={3} style={{ textAlign:'center', color:'var(--gray-400)', padding:'32px' }}>No test records found</td></tr>
               )}
             </tbody>
           </table>
