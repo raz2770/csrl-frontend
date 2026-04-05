@@ -67,6 +67,12 @@ export default function CentreDashboard() {
     return Object.entries(totals).sort((a,b)=>(a[1]/counts[a[0]])-(b[1]/counts[b[0]]))[0][0];
   }, [data]);
 
+  // Subject averages — must stay here (above early returns) to follow Rules of Hooks
+  const subjectAverages = useMemo(() => {
+    if (!data) return [];
+    return getSubjectAverages(data.tests, data.testColumns);
+  }, [data]);
+
   if (loading) return (
     <div style={{ display:'flex', height:'60vh', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:'14px', color:'var(--gray-400)' }}>
       <div style={{ fontSize:'40px', animation:'spin 1s linear infinite' }}>⏳</div>
@@ -98,11 +104,6 @@ export default function CentreDashboard() {
   }
 
   const rankClass = (i) => i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
-
-  const subjectAverages = useMemo(() => {
-    if (!data) return [];
-    return getSubjectAverages(data.tests, data.testColumns);
-  }, [data]);
 
   const pageTitle = { dashboard: 'Dashboard', rankings: 'Test Rankings', students: 'My Students', trends: 'Subject Trends' };
 
