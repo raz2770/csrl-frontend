@@ -5,12 +5,14 @@ import { useState } from 'react';
 const NAV_ITEMS = {
   ADMIN: [
     { label: 'Dashboard', icon: '🏠', id: 'dashboard' },
-    { label: 'Rankings', icon: '🏆', id: 'rankings' },
+    { label: 'Centre Rankings', icon: '🏆', id: 'centre-rankings' },
     { label: 'Student Database', icon: '👥', id: 'students' },
+    { label: 'Test Rankings', icon: '📊', id: 'rankings' },
   ],
   CENTRE: [
     { label: 'Dashboard', icon: '🏠', id: 'dashboard' },
     { label: 'Rankings', icon: '🏆', id: 'rankings' },
+    { label: 'Subject Trends', icon: '📈', id: 'trends' },
     { label: 'My Students', icon: '👥', id: 'students' },
   ],
   STUDENT: [

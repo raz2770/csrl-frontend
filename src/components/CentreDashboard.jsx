@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { fetchCenterDataApi, getRankingsByTest, calculateAnalytics } from '../services/dataService';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { fetchCenterDataApi, getRankingsByTest, calculateAnalytics, getSubjectAverages } from '../services/dataService';
 import { useAuth } from '../context/AuthContext';
 import StudentProfileView from './StudentProfileView';
 
@@ -98,7 +99,12 @@ export default function CentreDashboard() {
 
   const rankClass = (i) => i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
 
-  const pageTitle = { dashboard: 'Dashboard', rankings: 'Test Rankings', students: 'My Students' };
+  const subjectAverages = useMemo(() => {
+    if (!data) return [];
+    return getSubjectAverages(data.tests, data.testColumns);
+  }, [data]);
+
+  const pageTitle = { dashboard: 'Dashboard', rankings: 'Test Rankings', students: 'My Students', trends: 'Subject Trends' };
 
   // ─── STUDENTS PAGE ────────────────────────────────────────────────────────────
   const StudentsSection = () => (
@@ -216,6 +222,87 @@ export default function CentreDashboard() {
     </div>
   );
 
+  const SubjectTrendsSection = () => {
+    const maxAvg = Math.max(...subjectAverages.map(s => s.avg), 1);
+    const COLORS = ['#1a4fa0','#f5a623','#1a8a4a','#e86b1f','#c0392b','#8e44ad'];
+    return (
+      <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+        {/* Subject cards */}
+        <div className="grid-4">
+          {subjectAverages.map((s, i) => {
+            const isWeak = i === subjectAverages.length - 1;
+            const isTop = i === 0;
+            return (
+              <div key={s.subject} className="stat-card" style={{ borderLeft: `4px solid ${COLORS[i % COLORS.length]}` }}>
+                <div className="stat-icon" style={{ background: isWeak ? 'var(--red-bg)' : isTop ? 'var(--green-bg)' : 'var(--csrl-blue-light)' }}>
+                  {isWeak ? '⚠️' : isTop ? '🏆' : '📊'}
+                </div>
+                <div>
+                  <div className="stat-val" style={{ color: COLORS[i % COLORS.length], fontSize: 20 }}>{s.avg}</div>
+                  <div className="stat-lbl">{s.subject} {isWeak ? '(Weakest)' : isTop ? '(Strongest)' : ''}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Bar chart */}
+        <div className="card">
+          <div className="section-title">📊 Subject-wise Average Score</div>
+          {subjectAverages.length > 0 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={subjectAverages} margin={{ top:10, right:20, left:-10, bottom:5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--gray-100)" />
+                <XAxis dataKey="subject" tick={{ fontSize:13, fill:'var(--gray-600)' }} />
+                <YAxis tick={{ fontSize:12, fill:'var(--gray-400)' }} />
+                <Tooltip
+                  contentStyle={{ background:'var(--white)', border:'1px solid var(--gray-100)', borderRadius:8, fontSize:13 }}
+                  formatter={(val) => [`${val} avg marks`, 'Average']}
+                />
+                <Bar dataKey="avg" radius={[6,6,0,0]}>
+                  {subjectAverages.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p style={{ color:'var(--gray-400)', textAlign:'center', padding:32 }}>No test data available yet.</p>
+          )}
+        </div>
+
+        {/* Raw avg table */}
+        <div className="card">
+          <div className="section-title">📋 Subject Performance Details</div>
+          <table className="tbl">
+            <thead><tr><th>Subject</th><th>Avg Score</th><th>Data Points</th><th>Status</th></tr></thead>
+            <tbody>
+              {subjectAverages.map((s, i) => (
+                <tr key={s.subject}>
+                  <td style={{ fontWeight:700 }}>{s.subject}</td>
+                  <td>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div className="progress-bar" style={{ flex:1 }}>
+                        <div className="progress-fill" style={{ width:`${Math.round((s.avg/maxAvg)*100)}%`, background:COLORS[i%COLORS.length] }} />
+                      </div>
+                      <span style={{ fontWeight:700, color:COLORS[i%COLORS.length], minWidth:30 }}>{s.avg}</span>
+                    </div>
+                  </td>
+                  <td style={{ color:'var(--gray-600)' }}>{s.count} records</td>
+                  <td>
+                    {i === 0 && <span className="chip chip-good">🏆 Strongest</span>}
+                    {i === subjectAverages.length - 1 && i !== 0 && <span className="chip chip-weak">⚠️ Focus Needed</span>}
+                    {i > 0 && i < subjectAverages.length - 1 && <span className="chip" style={{ background:'#f1f5f9', color:'var(--gray-600)' }}>ℹ️ Average</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="fade-in">
       <div className="page-header">
@@ -225,9 +312,12 @@ export default function CentreDashboard() {
       <div className="content">
         {activePage === 'students' ? <StudentsSection /> :
          activePage === 'rankings' ? <RankingsSection /> :
+         activePage === 'trends' ? <SubjectTrendsSection /> :
          <DashboardSection />}
       </div>
     </div>
   );
 }
+
+
 

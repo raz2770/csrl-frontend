@@ -134,6 +134,17 @@
   .search-row { @apply flex gap-2.5 flex-wrap mb-4; }
   .search-row .inp { max-width: 220px; flex: 1; }
 
+  /* Progress bar */
+  .progress-bar { height: 8px; background: var(--gray-100); border-radius: 99px; overflow: hidden; min-width: 80px; }
+  .progress-fill { height: 100%; border-radius: 99px; background: var(--csrl-blue); transition: width .3s; }
+
+  /* Button variants */
+  .btn-danger { background: var(--red-bg) !important; color: var(--red) !important; border: 1px solid rgba(192,57,43,.2) !important; }
+  .btn-danger:hover { background: var(--red) !important; color: #fff !important; }
+  .btn-outline { background: transparent !important; border: 1.5px solid var(--gray-200) !important; color: var(--gray-600) !important; }
+  .btn-outline:hover { border-color: var(--csrl-blue) !important; color: var(--csrl-blue) !important; }
+  .btn-sm { padding: 4px 10px !important; font-size: 12px !important; }
+
   /* Animations */
   @keyframes fade-in {
     from { opacity: 0; transform: translateY(8px); }
@@ -141,6 +152,7 @@
   }
   .fade-in { animation: fade-in 0.25s ease-out forwards; }
 }
+
 
 @media (max-width: 900px) {
   .sidebar { display: none; }

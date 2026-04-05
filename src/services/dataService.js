@@ -203,3 +203,134 @@ export function calculateAnalytics(profiles) {
     highestJee: count > 0 ? highest.toFixed(2) : 'N/A'
   };
 }
+
+// ─── Utility: Rank all centres by avg test score ──────────────────────────────
+
+export function rankCentres(profiles, tests, testColumns) {
+  const centreStats = {};
+
+  profiles.forEach(p => {
+    const code = p.centerCode || 'UNKNOWN';
+    if (!centreStats[code]) centreStats[code] = { totals: {}, counts: {}, studentCount: 0 };
+    centreStats[code].studentCount++;
+
+    const studentTest = tests.find(t => t.ROLL_KEY === p.ROLL_KEY);
+    if (!studentTest) return;
+
+    testColumns.forEach(col => {
+      const raw = studentTest[col];
+      if (raw && String(raw).toLowerCase() !== 'absent') {
+        const m = parseFloat(raw);
+        if (!isNaN(m)) {
+          const parts = col.split(' ');
+          const sub = parts.length > 1 ? parts[0] : col;
+          centreStats[code].totals[sub] = (centreStats[code].totals[sub] || 0) + m;
+          centreStats[code].counts[sub] = (centreStats[code].counts[sub] || 0) + 1;
+        }
+      }
+    });
+  });
+
+  return Object.entries(centreStats)
+    .map(([code, stats]) => {
+      const subjects = Object.keys(stats.totals);
+      if (!subjects.length) return { code, avgScore: 0, studentCount: stats.studentCount, weakSubject: 'N/A' };
+      const totalAvg = subjects.reduce((sum, s) => sum + stats.totals[s] / (stats.counts[s]||1), 0) / subjects.length;
+      const weakSubject = subjects.sort((a,b) => (stats.totals[a]/stats.counts[a]) - (stats.totals[b]/stats.counts[b]))[0];
+      return { code, avgScore: parseFloat(totalAvg.toFixed(1)), studentCount: stats.studentCount, weakSubject };
+    })
+    .sort((a, b) => b.avgScore - a.avgScore)
+    .map((c, i) => ({ ...c, rank: i + 1 }));
+}
+
+// ─── Utility: Per-subject averages for a set of tests (for trends) ─────────────
+
+export function getSubjectAverages(tests, testColumns) {
+  const totals = {};
+  const counts = {};
+
+  tests.forEach(t => {
+    testColumns.forEach(col => {
+      const parts = col.split(' ');
+      const sub = parts.length > 1 ? parts[0] : col;
+      const raw = t[col];
+      if (raw && String(raw).toLowerCase() !== 'absent') {
+        const m = parseFloat(raw);
+        if (!isNaN(m)) {
+          totals[sub] = (totals[sub] || 0) + m;
+          counts[sub] = (counts[sub] || 0) + 1;
+        }
+      }
+    });
+  });
+
+  return Object.entries(totals).map(([subject, total]) => ({
+    subject,
+    avg: parseFloat((total / counts[subject]).toFixed(1)),
+    count: counts[subject]
+  })).sort((a, b) => b.avg - a.avg);
+}
+
+// ─── Utility: Student test-by-test multi-subject chart data ───────────────────
+
+export function buildStudentChartData(studentTests, testColumns) {
+  const testsMap = {};
+
+  testColumns.forEach(col => {
+    const parts = col.split(' ');
+    const sub = parts.length > 1 ? parts[0] : 'Score';
+    const testName = parts.length > 1 ? parts.slice(1).join(' ') : col;
+    if (!testsMap[testName]) testsMap[testName] = { name: testName };
+    const raw = studentTests[col];
+    if (raw && String(raw).toLowerCase() !== 'absent') {
+      const m = parseFloat(raw);
+      if (!isNaN(m)) testsMap[testName][sub] = m;
+    } else {
+      testsMap[testName][sub] = null;
+    }
+  });
+
+  return Object.values(testsMap);
+}
+
+// ─── CRUD API helpers ─────────────────────────────────────────────────────────
+
+export async function addStudentApi(token, studentData) {
+  const res = await fetch(`${API_BASE_URL}/students`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(studentData)
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function updateStudentApi(token, rollKey, studentData) {
+  const res = await fetch(`${API_BASE_URL}/students/${encodeURIComponent(rollKey)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(studentData)
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function deleteStudentApi(token, rollKey) {
+  const res = await fetch(`${API_BASE_URL}/students/${encodeURIComponent(rollKey)}`, {
+    method: 'DELETE',
+    headers: authHeaders(token)
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function upsertTestScoresApi(token, rollKey, scores) {
+  const res = await fetch(`${API_BASE_URL}/tests/${encodeURIComponent(rollKey)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ scores })
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
