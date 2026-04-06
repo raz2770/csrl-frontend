@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { GraduationCap, Building2, ShieldCheck, LogIn, AlertCircle } from 'lucide-react';
 import { CENTERS } from '../config/centers';
 import { useAuth } from '../context/AuthContext';
-import Logo from './Logo';
 
 const ROLES = [
   { key: 'student', Icon: GraduationCap, label: 'Student' },
@@ -34,7 +33,11 @@ export default function Login() {
         if (!id) { setError('Enter your roll number.'); return; }
         await login({ role: 'student', id, password: id });
       } else if (role === 'centre') {
-        await login({ role: 'centre', id: centre, password: centre });
+        if (!password) {
+          setError('Enter centre password.');
+          return;
+        }
+        await login({ role: 'centre', id: centre, password });
       } else {
         if (!username.trim() || !password) {
           setError('Enter username and password.');
@@ -67,7 +70,7 @@ export default function Login() {
       padding: '20px',
     }}>
       <div style={{
-        background: '#fff',
+        background: 'transparent',
         borderRadius: 16,
         boxShadow: '0 20px 60px rgba(0,0,0,.3)',
         width: '100%',
@@ -82,7 +85,7 @@ export default function Login() {
           textAlign: 'center',
         }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-            <Logo size={68} />
+            <img src="/logo.png" alt="CSRL logo" style={{ width: 68, height: 68, objectFit: 'cover', borderRadius: '50%' }} />
           </div>
           <p style={{ color: '#f5a623', fontSize: 21, fontWeight: 800, letterSpacing: 0.5, margin: 0 }}>CSRL</p>
           <p style={{ color: 'rgba(255,255,255,.8)', fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', margin: '4px 0 0' }}>
@@ -93,37 +96,38 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Role tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid #eef0f5' }}>
-          {ROLES.map(({ key, Icon, label }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => { setRole(key); setError(''); }}
-              style={{
-                flex: 1,
-                padding: '12px 6px',
-                border: 'none',
-                background: 'none',
-                fontSize: 13,
-                fontWeight: role === key ? 700 : 500,
-                color: role === key ? '#1a4fa0' : '#9097b1',
-                borderBottom: role === key ? '2.5px solid #1a4fa0' : '2.5px solid transparent',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-              }}
-            >
-              <Icon size={14} />
-              {label}
-            </button>
-          ))}
-        </div>
+        <div style={{ background: '#fff' }}>
+          {/* Role tabs */}
+          <div style={{ display: 'flex', borderBottom: '1px solid #eef0f5' }}>
+            {ROLES.map(({ key, Icon, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => { setRole(key); setError(''); setPassword(''); }}
+                style={{
+                  flex: 1,
+                  padding: '12px 6px',
+                  border: 'none',
+                  background: 'none',
+                  fontSize: 13,
+                  fontWeight: role === key ? 700 : 500,
+                  color: role === key ? '#1a4fa0' : '#9097b1',
+                  borderBottom: role === key ? '2.5px solid #1a4fa0' : '2.5px solid transparent',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+              >
+                <Icon size={14} />
+                {label}
+              </button>
+            ))}
+          </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} style={{ padding: '20px 24px 18px' }}>
+          {/* Form */}
+          <form onSubmit={handleSubmit} style={{ padding: '20px 24px 18px' }}>
           {role === 'student' && (
             <div className="form-group">
               <label className="label" htmlFor="roll">Roll Number</label>
@@ -151,6 +155,20 @@ export default function Login() {
                   <option key={c} value={c}>{c} — {CENTERS[c]?.name || c}</option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {role === 'centre' && (
+            <div className="form-group">
+              <label className="label" htmlFor="centre-password">Password</label>
+              <input
+                id="centre-password"
+                className="input"
+                type="password"
+                placeholder="Enter centre password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
           )}
 
@@ -207,18 +225,19 @@ export default function Login() {
             <LogIn size={16} />
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
-        </form>
+          </form>
 
-        <div style={{
-          textAlign: 'center',
-          padding: '0 24px 18px',
-          fontSize: 12,
-          color: '#9097b1',
-          borderTop: '1px solid #f0f0f0',
-          paddingTop: 12,
-        }}>
-          Developed by <strong style={{ color: '#1a4fa0' }}>Ajaya Kumar</strong> — Trainee Faculty, CSRL
-          <div style={{ marginTop: 3, fontSize: 11 }}>OIL India Super 30 · 2024–25</div>
+          <div style={{
+            textAlign: 'center',
+            padding: '0 24px 18px',
+            fontSize: 12,
+            color: '#9097b1',
+            borderTop: '1px solid #f0f0f0',
+            paddingTop: 12,
+          }}>
+            Developed by <strong style={{ color: '#1a4fa0' }}>Ajaya Kumar</strong> — Trainee Faculty, CSRL
+            <div style={{ marginTop: 3, fontSize: 11 }}>OIL India Super 30 · 2024–25</div>
+          </div>
         </div>
       </div>
     </div>

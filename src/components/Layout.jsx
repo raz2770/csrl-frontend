@@ -2,7 +2,6 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useEffect, useState } from 'react';
 import { CENTERS } from '../config/centers';
-import Logo from './Logo';
 import {
   Trophy,
   LayoutDashboard,
@@ -95,7 +94,7 @@ export default function Layout() {
       <aside className="sidebar">
         {/* Logo */}
         <div className="sidebar-logo">
-          <Logo size={34} />
+          <img src="/logo.png" alt="CSRL logo" style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: '50%' }} />
           <div>
             <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>CSRL</div>
             <div style={{ color: 'rgba(255,255,255,.5)', fontSize: 10 }}>Super 30</div>
@@ -164,7 +163,7 @@ export default function Layout() {
         {/* Mobile top bar */}
         <div className="mobile-topbar" style={{ boxShadow: 'var(--shadow)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Logo size={28} />
+            <img src="/logo.png" alt="CSRL logo" style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: '50%' }} />
             <span style={{ color: 'var(--csrl-blue)', fontWeight: 700, fontSize: 14 }}>CSRL</span>
           </div>
 

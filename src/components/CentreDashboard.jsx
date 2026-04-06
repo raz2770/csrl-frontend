@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Trophy, Users, AlertTriangle, BarChart2, TrendingUp, Building2, ArrowLeft, Loader2, Search } from 'lucide-react';
+import { LayoutDashboard, Trophy, Users, AlertTriangle, BarChart2, TrendingUp, Building2, ArrowLeft, Loader2, Search, Eye } from 'lucide-react';
 import { fetchCenterDataApi, getRankingsByTest, calculateAnalytics } from '../services/dataService';
 import { useAuth } from '../context/AuthContext';
 import StudentProfileView from './StudentProfileView';
@@ -253,7 +253,7 @@ export default function CentreDashboard() {
       </div>
       <table className="table">
         <thead>
-          <tr><th>Roll</th><th>Name</th><th>Category</th><th>Mobile</th></tr>
+          <tr><th>Roll</th><th>Name</th><th>Category</th><th>Mobile</th><th>Actions</th></tr>
         </thead>
         <tbody>
           {filteredStudents.map((s) => (
@@ -267,10 +267,20 @@ export default function CentreDashboard() {
               </td>
               <td><span className={`badge badge-${(s.CATEGORY || 'general').toLowerCase()}`}>{s.CATEGORY || 'General'}</span></td>
               <td style={{ fontSize: 13, color: 'var(--gray-600)' }}>{s['Mobile No.'] || '—'}</td>
+              <td>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  aria-label="View student profile"
+                  onClick={() => setViewingStudentId(s.ROLL_KEY)}
+                >
+                  <Eye size={13} />
+                </button>
+              </td>
             </tr>
           ))}
           {!filteredStudents.length && (
-            <tr><td colSpan={4} style={{ textAlign: 'center', padding: 24, color: 'var(--gray-400)' }}>No students found.</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--gray-400)' }}>No students found.</td></tr>
           )}
         </tbody>
       </table>

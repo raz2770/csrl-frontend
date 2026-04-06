@@ -5,6 +5,7 @@ import {
   ShieldCheck, Plus, Upload, Download, Package, Pencil, Trash2,
   Search, TrendingUp, TrendingDown, LayoutDashboard, BarChart2,
   Lightbulb, Loader2, CheckCircle2,
+  Eye,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -765,6 +766,9 @@ export default function AdminDashboard() {
                 <td>{getJeePercentile(s) ?? '—'}</td>
                 <td>
                   <div className="action-btns">
+                    <button type="button" className="btn btn-primary btn-sm" aria-label="View student profile" onClick={() => setViewingStudentId(s.ROLL_KEY)}>
+                      <Eye size={13} />
+                    </button>
                     <button type="button" className="btn btn-warning btn-sm" aria-label="Edit student" onClick={() => { setModalStudent(s); setModalMode('edit'); }}>
                       <Pencil size={13} />
                     </button>
