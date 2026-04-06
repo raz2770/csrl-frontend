@@ -12,11 +12,11 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchStudentData(auth.token)
+    fetchStudentData(null, auth.id)
       .then(d => setData(d))
       .catch(e => console.error(e))
       .finally(() => setLoading(false));
-  }, [auth.token]);
+  }, [auth.id]);
 
   if (loading) return (
     <div style={{ display:'flex', height:'60vh', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:14, color:'var(--gray-400)' }}>
@@ -37,15 +37,18 @@ export default function StudentDashboard() {
 
   // ── Scores / Progress Tab ──────────────────────────────────────────────────
   const ScoresSection = () => {
-    const chartData = useMemo(() => buildStudentChartData(studentTests, testColumns), []);
+    const chartData = useMemo(() => buildStudentChartData(studentTests, testColumns), [studentTests, testColumns]);
     // Get unique subjects
-    const subjects = [...new Set(testColumns.map(c => c.split(' ')[0]).filter(Boolean))];
+    const subjects = [...new Set(
+      chartData.flatMap((row) => Object.keys(row).filter((k) => k !== 'name' && k !== 'Total'))
+    )];
     const COLORS = ['#1a4fa0','#f5a623','#1a8a4a','#e86b1f','#c0392b'];
 
-    // Full score table
-    const rows = testColumns.map(col => ({
-      test: col,
-      score: studentTests[col] !== undefined && studentTests[col] !== '' ? studentTests[col] : '—'
+    // Grouped score rows by test
+    const rows = chartData.map((row) => ({
+      test: row.name,
+      subjectMarks: subjects.map((sub) => ({ sub, score: row[sub] ?? '—' })),
+      total: row.Total ?? '—',
     }));
 
     return (
@@ -75,36 +78,42 @@ export default function StudentDashboard() {
         <div className="card">
           <div className="section-title">📋 All Test Scores</div>
           <div style={{ overflowX:'auto' }}>
-            <table className="tbl">
+            <table className="table">
               <thead>
                 <tr>
                   <th>Test</th>
-                  <th>Subject</th>
-                  <th>Score</th>
+                  <th>Subject Marks</th>
+                  <th>Total</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => {
-                  const sub = r.test.split(' ')[0];
-                  const testName = r.test.split(' ').slice(1).join(' ') || r.test;
-                  const isAbsent = String(r.score).toLowerCase() === 'absent';
-                  const num = parseFloat(r.score);
+                  const totalNum = parseFloat(r.total);
+                  const hasTotal = !Number.isNaN(totalNum);
                   let statusChip;
-                  if (r.score === '—' || isAbsent) {
-                    statusChip = <span className="chip" style={{ background:'var(--gray-100)', color:'var(--gray-400)' }}>{isAbsent ? 'Absent' : 'N/A'}</span>;
-                  } else if (!isNaN(num) && num >= 80) {
-                    statusChip = <span className="chip chip-good">✅ Good</span>;
-                  } else if (!isNaN(num) && num >= 50) {
+                  if (!hasTotal) {
+                    statusChip = <span className="chip" style={{ background:'var(--gray-100)', color:'var(--gray-400)' }}>N/A</span>;
+                  } else if (totalNum >= 140) {
+                    statusChip = <span className="chip chip-good">✅ Strong</span>;
+                  } else if (totalNum >= 90) {
                     statusChip = <span className="chip" style={{ background:'#fff3e0', color:'#b45309' }}>📊 Average</span>;
                   } else {
                     statusChip = <span className="chip chip-weak">⚠️ Needs Work</span>;
                   }
                   return (
                     <tr key={i}>
-                      <td style={{ fontWeight:600, fontSize:13 }}>{testName}</td>
-                      <td><span className="chip" style={{ background:'var(--csrl-blue-light)', color:'var(--csrl-blue)' }}>{sub}</span></td>
-                      <td style={{ fontWeight:700, fontSize:16, color:'var(--csrl-blue)' }}>{r.score}</td>
+                      <td style={{ fontWeight:600, fontSize:13 }}>{r.test}</td>
+                      <td>
+                        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                          {r.subjectMarks.map(({ sub, score }) => (
+                            <span key={sub} className="chip" style={{ background:'var(--csrl-blue-light)', color:'var(--csrl-blue)' }}>
+                              {sub}: {score}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td style={{ fontWeight:700, fontSize:16, color:'var(--csrl-blue)' }}>{r.total}</td>
                       <td>{statusChip}</td>
                     </tr>
                   );

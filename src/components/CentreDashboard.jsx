@@ -17,14 +17,21 @@ export default function CentreDashboard() {
   const [filterCategory, setFilterCategory] = useState('ALL');
 
   useEffect(() => {
-    fetchCenterDataApi(auth.token)
+    fetchCenterDataApi(null, auth.centerCode)
       .then(d => {
         setData(d);
-        if (d.testColumns.length > 0) setSelectedTestKey(d.testColumns[d.testColumns.length - 1]);
+        const rankingCols = (d.testColumns || []).filter((c) => !String(c).includes('_'));
+        const candidate = rankingCols.length ? rankingCols[rankingCols.length - 1] : d.testColumns?.[0];
+        if (candidate) setSelectedTestKey(candidate);
       })
       .catch(err => setError('Failed to load: ' + err.message))
       .finally(() => setLoading(false));
-  }, [auth.token]);
+  }, [auth.centerCode]);
+
+  const rankingTestColumns = useMemo(
+    () => (data?.testColumns || []).filter((c) => !String(c).includes('_')),
+    [data]
+  );
 
   const analytics = useMemo(() => {
     if (!data) return { totalStudents: 0, avgJee: 'N/A', highestJee: 'N/A' };
@@ -113,14 +120,14 @@ export default function CentreDashboard() {
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px', flexWrap:'wrap', gap:'10px' }}>
         <div className="section-title" style={{ margin:0 }}>👥 Student Directory ({filteredStudents.length})</div>
         <div className="search-row" style={{ margin:0 }}>
-          <input type="text" className="inp" style={{ width:200 }} placeholder="Search name or roll..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-          <select className="inp select" style={{ width:130 }} value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
+          <input type="text" className="input" style={{ width:200 }} placeholder="Search name or roll..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <select className="input select" style={{ width:130 }} value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
       </div>
       <div style={{ overflowX:'auto', maxHeight:'600px', overflowY:'auto' }}>
-        <table className="tbl">
+        <table className="table">
           <thead><tr><th>Roll No</th><th>Name</th><th>Category</th><th>Action</th></tr></thead>
           <tbody>
             {filteredStudents.map((s, i) => (
@@ -151,14 +158,14 @@ export default function CentreDashboard() {
     <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
       <div className="card" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'12px' }}>
         <div className="section-title" style={{ margin:0 }}>📊 Select Test to Analyze</div>
-        <select className="inp select" style={{ width:'auto', minWidth:'200px' }} value={selectedTestKey} onChange={e => setSelectedTestKey(e.target.value)}>
-          {data.testColumns.map(col => <option key={col} value={col}>{col}</option>)}
+        <select className="input select" style={{ width:'auto', minWidth:'200px' }} value={selectedTestKey} onChange={e => setSelectedTestKey(e.target.value)}>
+          {rankingTestColumns.map(col => <option key={col} value={col}>{col}</option>)}
         </select>
       </div>
       <div className="grid-2">
         <div className="card">
           <div className="section-title">🏆 Top 10 — {selectedTestKey}</div>
-          <table className="tbl">
+          <table className="table">
             <thead><tr><th>#</th><th>Student</th><th>Score</th></tr></thead>
             <tbody>
               {rankings.top10.map((s, i) => (
@@ -177,7 +184,7 @@ export default function CentreDashboard() {
         </div>
         <div className="card">
           <div className="section-title">⚠️ Needs Attention</div>
-          <table className="tbl">
+          <table className="table">
             <thead><tr><th>#</th><th>Student</th><th>Score</th></tr></thead>
             <tbody>
               {rankings.bottom10.map((s, i) => (
@@ -275,7 +282,7 @@ export default function CentreDashboard() {
         {/* Raw avg table */}
         <div className="card">
           <div className="section-title">📋 Subject Performance Details</div>
-          <table className="tbl">
+          <table className="table">
             <thead><tr><th>Subject</th><th>Avg Score</th><th>Data Points</th><th>Status</th></tr></thead>
             <tbody>
               {subjectAverages.map((s, i) => (

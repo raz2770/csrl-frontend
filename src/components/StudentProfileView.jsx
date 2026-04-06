@@ -17,29 +17,48 @@ export default function StudentProfileView({ profile, studentTests, testColumns 
     const subjectTotals = {};
     const subjectCounts = {};
 
-    (testColumns || []).forEach(col => {
-      const parts = col.split(' ');
-      const subject = parts.length > 1 ? parts[0] : 'Score';
-      const testName = parts.length > 1 ? parts.slice(1).join(' ') : col;
+    const parseColumn = (col) => {
+      const raw = String(col || '').trim();
+      const m = raw.match(/^(.*)_([^_]+)$/);
+      if (m) {
+        return { testName: m[1].trim(), subject: m[2].trim(), isTotal: false };
+      }
+      return { testName: raw, subject: 'Total', isTotal: true };
+    };
 
-      if (!testsMap[testName]) testsMap[testName] = { name: testName, marks: {}, total: 0 };
+    (testColumns || []).forEach(col => {
+      const { testName, subject, isTotal } = parseColumn(col);
+
+      if (!testsMap[testName]) testsMap[testName] = { name: testName, marks: {}, total: null };
 
       const rawMark = (studentTests || {})[col];
-      if (rawMark !== undefined && rawMark !== null && rawMark !== '' &&
-          String(rawMark) !== '0' && String(rawMark).toLowerCase() !== 'absent') {
+      if (rawMark !== undefined && rawMark !== null && rawMark !== '' && String(rawMark).toLowerCase() !== 'absent') {
         const m = parseFloat(rawMark);
         if (!isNaN(m)) {
-          testsMap[testName].marks[subject] = m;
-          testsMap[testName].total += m;
-          subjectTotals[subject] = (subjectTotals[subject] || 0) + m;
-          subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
+          if (isTotal) {
+            testsMap[testName].total = m;
+          } else {
+            testsMap[testName].marks[subject] = m;
+            subjectTotals[subject] = (subjectTotals[subject] || 0) + m;
+            subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
+          }
         }
       } else {
-        testsMap[testName].marks[subject] = 'A';
+        if (!isTotal) testsMap[testName].marks[subject] = 'A';
       }
     });
 
-    const mappedTestList = Object.values(testsMap);
+    Object.values(testsMap).forEach((t) => {
+      if (t.total !== null) return;
+      const computed = Object.values(t.marks)
+        .filter((v) => typeof v === 'number')
+        .reduce((sum, v) => sum + v, 0);
+      t.total = computed;
+    });
+
+    const mappedTestList = Object.values(testsMap).sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { numeric: true })
+    );
 
     let weakSub = 'N/A', minAvg = Infinity;
     Object.keys(subjectTotals).forEach(sub => {
@@ -124,7 +143,7 @@ export default function StudentProfileView({ profile, studentTests, testColumns 
         <div className="card" style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
           <div className="section-title">🎯 Target & Goals</div>
           <div>
-            <div className="lbl">Target College / Branch</div>
+            <div className="label">Target College / Branch</div>
             <div style={{ fontWeight:700, fontSize:15, color:'var(--gray-800)', marginTop:4 }}>
               {profile['FUTURE COLLEGE (TARGET)'] || 'Not specified'}
             </div>
@@ -166,7 +185,7 @@ export default function StudentProfileView({ profile, studentTests, testColumns 
       <div className="card">
         <div className="section-title">📋 Complete Test Records</div>
         <div style={{ overflowX:'auto' }}>
-          <table className="tbl">
+          <table className="table">
             <thead>
               <tr>
                 <th style={{ width:'35%' }}>Test Name</th>

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CENTERS } from '../config/centers';
-import { loginApi } from '../services/dataService';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
@@ -19,26 +18,22 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      const creds = {
+      await login({
         role: role.toLowerCase(),
-        id: role === 'STUDENT' || role === 'ADMIN' ? idParam.trim() : center,
-        password: role !== 'STUDENT' ? password : ''
-      };
-      const resp = await loginApi(creds);
-      if (resp.success) {
-        login({
-          role: resp.role.toUpperCase(),
-          id: role === 'STUDENT' || role === 'ADMIN' ? idParam.trim() : center,
-          name: resp.name,
-          centerCode: resp.centerCode,
-          token: resp.token
-        });
-        navigate('/');
+        id:   role === 'STUDENT' || role === 'ADMIN' ? idParam.trim() : center,
+        password,
+      });
+      navigate('/');
+    } catch (err) {
+      // Firebase error codes → friendly messages
+      const code = err?.code || '';
+      if (code.includes('user-not-found') || code.includes('wrong-password') || code.includes('invalid-credential')) {
+        setError('Invalid credentials. Please check your ID and password.');
+      } else if (code.includes('too-many-requests')) {
+        setError('Too many failed attempts. Please try again later.');
       } else {
-        setError(resp.message || 'Authentication failed');
+        setError(err?.message || 'Authentication failed. Please try again.');
       }
-    } catch {
-      setError('Invalid credentials or backend is offline.');
     } finally {
       setLoading(false);
     }
@@ -96,9 +91,9 @@ export default function Login() {
             {/* Centre selector */}
             {role !== 'ADMIN' && (
               <div>
-                <label className="lbl">Select Centre</label>
+                <label className="label">Select Centre</label>
                 <select
-                  className="inp select"
+                  className="input select"
                   value={center}
                   onChange={e => setCenter(e.target.value)}
                 >
@@ -112,11 +107,11 @@ export default function Login() {
             {/* Roll / Username */}
             {role === 'STUDENT' && (
               <div>
-                <label className="lbl">Roll Number</label>
+                <label className="label">Roll Number</label>
                 <input
                   type="text" autoFocus required
                   placeholder="e.g. 24001"
-                  className="inp"
+                  className="input"
                   value={idParam}
                   onChange={e => setIdParam(e.target.value)}
                 />
@@ -124,11 +119,11 @@ export default function Login() {
             )}
             {role === 'ADMIN' && (
               <div>
-                <label className="lbl">Username</label>
+                <label className="label">Username</label>
                 <input
                   type="text" autoFocus required
                   placeholder="Admin username"
-                  className="inp"
+                  className="input"
                   value={idParam}
                   onChange={e => setIdParam(e.target.value)}
                 />
@@ -138,11 +133,11 @@ export default function Login() {
             {/* Password */}
             {(role === 'CENTRE' || role === 'ADMIN') && (
               <div>
-                <label className="lbl">Password</label>
+                <label className="label">Password</label>
                 <input
                   type="password" required
                   placeholder="Enter password"
-                  className="inp"
+                  className="input"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                 />

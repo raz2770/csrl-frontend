@@ -1,12 +1,13 @@
-import { Outlet, useNavigate, useOutletContext } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const NAV_ITEMS = {
   ADMIN: [
     { label: 'Dashboard', icon: '🏠', id: 'dashboard' },
     { label: 'Centre Rankings', icon: '🏆', id: 'centre-rankings' },
     { label: 'Student Database', icon: '👥', id: 'students' },
+    { label: 'Import / Export', icon: '📤', id: 'import-export' },
     { label: 'Test Rankings', icon: '📊', id: 'rankings' },
   ],
   CENTRE: [
@@ -26,6 +27,11 @@ export default function Layout() {
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState('dashboard');
 
+  useEffect(() => {
+    const firstNav = NAV_ITEMS[auth?.role]?.[0]?.id || 'dashboard';
+    setActivePage(firstNav);
+  }, [auth?.role]);
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -40,13 +46,13 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center p-1 shadow">
-              <img src="/logo.png" alt="CSRL" className="w-full h-full object-contain" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 40, height: 40, background: '#fff', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, boxShadow: 'var(--shadow)' }}>
+              <img src="/logo.png" alt="CSRL" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             </div>
             <div>
-              <div className="text-white font-bold text-[13px] leading-tight">CSRL</div>
-              <div className="text-[11px] leading-tight" style={{ color: 'rgba(255,255,255,.55)' }}>Performance Hub</div>
+              <div style={{ color: '#fff', fontWeight: 700, fontSize: 13, lineHeight: 1.2 }}>CSRL</div>
+              <div style={{ color: 'rgba(255,255,255,.55)', fontSize: 11, lineHeight: 1.2 }}>Performance Hub</div>
             </div>
           </div>
         </div>
@@ -65,18 +71,18 @@ export default function Layout() {
         </nav>
 
         {/* User footer */}
-        <div className="px-[18px] py-4" style={{ borderTop: '1px solid rgba(255,255,255,.1)' }}>
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="avatar w-8 h-8 text-sm">{initials}</div>
-            <div className="flex-1 min-w-0">
-              <div className="text-white text-[13px] font-semibold truncate">{auth?.name || auth?.id}</div>
-              <div className="text-[11px]" style={{ color: 'rgba(255,255,255,.5)' }}>{auth?.role}</div>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,.1)', padding: '14px 18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <div className="avatar" style={{ width: 32, height: 32, fontSize: 12 }}>{initials}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: '#fff', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{auth?.name || auth?.id}</div>
+              <div style={{ color: 'rgba(255,255,255,.5)', fontSize: 11 }}>{auth?.role}</div>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="btn btn-sm w-full justify-center"
-            style={{ background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.8)', border: '1px solid rgba(255,255,255,.15)' }}
+            className="btn btn-sm"
+            style={{ width: '100%', justifyContent: 'center', background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.8)', border: '1px solid rgba(255,255,255,.15)' }}
           >
             🚪 Sign Out
           </button>
@@ -86,13 +92,13 @@ export default function Layout() {
       {/* Main */}
       <div className="main">
         {/* Mobile topbar */}
-        <div className="flex items-center justify-between px-4 py-3 bg-white border-b md:hidden" style={{ boxShadow: 'var(--shadow)' }}>
-          <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="CSRL" className="h-8 w-auto" />
-            <span className="font-bold text-sm" style={{ color: 'var(--csrl-blue)' }}>CSRL</span>
+        <div className="mobile-topbar" style={{ boxShadow: 'var(--shadow)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <img src="/logo.png" alt="CSRL" style={{ height: 32, width: 'auto' }} />
+            <span style={{ color: 'var(--csrl-blue)', fontWeight: 700, fontSize: 14 }}>CSRL</span>
           </div>
           {/* Mobile bottom nav */}
-          <div className="flex gap-1">
+          <div className="mobile-nav-strip">
             {navItems.map(item => (
               <button
                 key={item.id}

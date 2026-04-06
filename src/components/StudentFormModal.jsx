@@ -44,27 +44,23 @@ export default function StudentFormModal({ mode, student, onClose, onSubmit, loa
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1000,
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-      padding: '24px', overflowY: 'auto'
-    }}>
-      <div className="card" style={{ width: '100%', maxWidth: 700, margin: 'auto' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--csrl-blue)' }}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title">
             {mode === 'add' ? '➕ Add New Student' : '✏️ Edit Student Profile'}
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--gray-400)' }}>✕</button>
+          <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="grid-2" style={{ gap: 12 }}>
+          <div className="modal-body" style={{ maxHeight: '68vh', overflowY: 'auto' }}>
+            <div className="form-grid">
             {FIELDS.map(f => (
-              <div key={f.key}>
-                <label className="lbl">{f.label}{f.required && <span style={{ color: 'var(--red)' }}> *</span>}</label>
+              <div key={f.key} className="form-group">
+                <label className="label">{f.label}{f.required && <span style={{ color: 'var(--red)' }}> *</span>}</label>
                 <input
-                  className="inp"
+                  className="input"
                   type="text"
                   required={f.required}
                   value={form[f.key] || ''}
@@ -74,10 +70,10 @@ export default function StudentFormModal({ mode, student, onClose, onSubmit, loa
                 />
               </div>
             ))}
+            </div>
           </div>
 
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--gray-100)' }}>
+          <div className="modal-footer">
             <button type="button" onClick={onClose} className="btn btn-outline">Cancel</button>
             <button type="submit" disabled={loading} className="btn btn-primary">
               {loading ? '⏳ Saving...' : mode === 'add' ? '✅ Add Student' : '💾 Save Changes'}

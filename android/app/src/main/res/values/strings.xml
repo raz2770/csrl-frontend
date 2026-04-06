@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CSRL App</string>
+    <string name="title_activity_main">CSRL App</string>
+    <string name="package_name">com.csrl.app</string>
+    <string name="custom_url_scheme">com.csrl.app</string>
+</resources>

@@ -27,24 +27,20 @@ export default function TestDataModal({ student, testColumns, existingScores, on
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1000,
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-      padding: '24px', overflowY: 'auto'
-    }}>
-      <div className="card" style={{ width: '100%', maxWidth: 760, margin: 'auto' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 760 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--csrl-blue)' }}>📝 Manage Test Scores</div>
-            <div style={{ fontSize: 13, color: 'var(--gray-600)', marginTop: 2 }}>
+            <div className="modal-title">📝 Manage Test Scores</div>
+            <div style={{ fontSize: 13, color: 'var(--gray-600)', marginTop: 2, marginLeft: 2 }}>
               {student?.["STUDENT'S NAME"]} · {student?.ROLL_KEY}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--gray-400)' }}>✕</button>
+          <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
         <form onSubmit={handleSubmit}>
+          <div className="modal-body">
           {Object.entries(grouped).map(([subject, cols]) => (
             <div key={subject} style={{ marginBottom: 18 }}>
               <div style={{
@@ -59,9 +55,9 @@ export default function TestDataModal({ student, testColumns, existingScores, on
                   const testName = col.split(' ').slice(1).join(' ') || col;
                   return (
                     <div key={col}>
-                      <label className="lbl" style={{ fontSize: 11 }}>{testName}</label>
+                      <label className="label" style={{ fontSize: 11 }}>{testName}</label>
                       <input
-                        className="inp"
+                        className="input"
                         type="text"
                         placeholder="Score or 'Absent'"
                         value={scores[col]}
@@ -73,8 +69,9 @@ export default function TestDataModal({ student, testColumns, existingScores, on
               </div>
             </div>
           ))}
+          </div>
 
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--gray-100)' }}>
+          <div className="modal-footer">
             <button type="button" onClick={onClose} className="btn btn-outline">Cancel</button>
             <button type="submit" disabled={loading} className="btn btn-primary">
               {loading ? '⏳ Saving...' : '💾 Save Test Scores'}
