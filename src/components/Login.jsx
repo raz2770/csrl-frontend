@@ -1,168 +1,224 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { GraduationCap, Building2, ShieldCheck, LogIn, AlertCircle } from 'lucide-react';
 import { CENTERS } from '../config/centers';
 import { useAuth } from '../context/AuthContext';
+import Logo from './Logo';
+
+const ROLES = [
+  { key: 'student', Icon: GraduationCap, label: 'Student' },
+  { key: 'centre',  Icon: Building2,      label: 'Centre'  },
+  { key: 'admin',   Icon: ShieldCheck,    label: 'Admin'   },
+];
 
 export default function Login() {
   const { login } = useAuth();
-  const [role, setRole] = useState('STUDENT');
-  const [center, setCenter] = useState(Object.keys(CENTERS)[0]);
-  const [idParam, setIdParam] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const [role,     setRole]     = useState('student');
+  const [roll,     setRoll]     = useState('');
+  const [centre,   setCentre]   = useState(Object.keys(CENTERS)[0] || '');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error,    setError]    = useState('');
+  const [loading,  setLoading]  = useState(false);
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault();
     setError('');
     setLoading(true);
+
     try {
-      await login({
-        role: role.toLowerCase(),
-        id:   role === 'STUDENT' || role === 'ADMIN' ? idParam.trim() : center,
-        password,
-      });
+      if (role === 'student') {
+        const id = roll.trim();
+        if (!id) { setError('Enter your roll number.'); return; }
+        await login({ role: 'student', id, password: id });
+      } else if (role === 'centre') {
+        await login({ role: 'centre', id: centre, password: centre });
+      } else {
+        if (!username.trim() || !password) {
+          setError('Enter username and password.');
+          return;
+        }
+        await login({ role: 'admin', id: username.trim(), password });
+      }
       navigate('/');
     } catch (err) {
-      // Firebase error codes → friendly messages
       const code = err?.code || '';
       if (code.includes('user-not-found') || code.includes('wrong-password') || code.includes('invalid-credential')) {
-        setError('Invalid credentials. Please check your ID and password.');
+        setError('Invalid credentials. Please check your details and try again.');
       } else if (code.includes('too-many-requests')) {
         setError('Too many failed attempts. Please try again later.');
       } else {
-        setError(err?.message || 'Authentication failed. Please try again.');
+        setError(err?.message || 'Sign-in failed. Please try again.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const roles = [
-    { key: 'STUDENT', icon: '🎓', label: 'Student' },
-    { key: 'CENTRE', icon: '🏢', label: 'Centre' },
-    { key: 'ADMIN', icon: '🛡️', label: 'Admin' },
-  ];
-
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, var(--csrl-blue-dark) 0%, var(--csrl-blue) 60%, #2563b0 100%)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px'
+      background: 'linear-gradient(135deg,#0d3575 0%,#1a4fa0 60%,#1565c0 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px',
     }}>
-      <div style={{ width: '100%', maxWidth: '420px' }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div style={{
-            width: '72px', height: '72px', background: '#fff', borderRadius: '18px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 14px', padding: '10px',
-            boxShadow: '0 8px 32px rgba(0,0,0,.2)'
-          }}>
-            <img src="/logo.png" alt="CSRL" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+      <div style={{
+        background: '#fff',
+        borderRadius: 16,
+        boxShadow: '0 20px 60px rgba(0,0,0,.3)',
+        width: '100%',
+        maxWidth: 430,
+        overflow: 'hidden',
+      }}>
+
+        {/* Header band */}
+        <div style={{
+          background: 'linear-gradient(135deg,#0d3575,#1a4fa0)',
+          padding: '28px 24px 20px',
+          textAlign: 'center',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+            <Logo size={68} />
           </div>
-          <h1 style={{ color: '#fff', fontSize: '22px', fontWeight: 800, letterSpacing: '-0.5px' }}>
-            CSRL Performance Hub
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,.65)', fontSize: '13px', marginTop: '4px' }}>
-            Student Management System
+          <p style={{ color: '#f5a623', fontSize: 21, fontWeight: 800, letterSpacing: 0.5, margin: 0 }}>CSRL</p>
+          <p style={{ color: 'rgba(255,255,255,.8)', fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', margin: '4px 0 0' }}>
+            Centre for Social Responsibility &amp; Leadership
+          </p>
+          <p style={{ color: 'rgba(255,255,255,.6)', fontSize: 13, margin: '6px 0 0' }}>
+            Super 30 — Student Management System
           </p>
         </div>
 
-        {/* Card */}
-        <div className="card" style={{ padding: '28px' }}>
-          {/* Role Tabs */}
-          <div className="tab-bar" style={{ width: '100%', marginBottom: '20px' }}>
-            {roles.map(r => (
-              <button
-                key={r.key}
-                type="button"
-                style={{ flex: 1, justifyContent: 'center' }}
-                className={`tab ${role === r.key ? 'active' : ''}`}
-                onClick={() => setRole(r.key)}
-              >
-                {r.icon} {r.label}
-              </button>
-            ))}
-          </div>
-
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {/* Centre selector */}
-            {role !== 'ADMIN' && (
-              <div>
-                <label className="label">Select Centre</label>
-                <select
-                  className="input select"
-                  value={center}
-                  onChange={e => setCenter(e.target.value)}
-                >
-                  {Object.keys(CENTERS).map(c => (
-                    <option key={c} value={c}>{CENTERS[c].name} ({c})</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Roll / Username */}
-            {role === 'STUDENT' && (
-              <div>
-                <label className="label">Roll Number</label>
-                <input
-                  type="text" autoFocus required
-                  placeholder="e.g. 24001"
-                  className="input"
-                  value={idParam}
-                  onChange={e => setIdParam(e.target.value)}
-                />
-              </div>
-            )}
-            {role === 'ADMIN' && (
-              <div>
-                <label className="label">Username</label>
-                <input
-                  type="text" autoFocus required
-                  placeholder="Admin username"
-                  className="input"
-                  value={idParam}
-                  onChange={e => setIdParam(e.target.value)}
-                />
-              </div>
-            )}
-
-            {/* Password */}
-            {(role === 'CENTRE' || role === 'ADMIN') && (
-              <div>
-                <label className="label">Password</label>
-                <input
-                  type="password" required
-                  placeholder="Enter password"
-                  className="input"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                />
-              </div>
-            )}
-
-            {error && (
-              <div style={{
-                background: 'var(--red-bg)', color: 'var(--red)',
-                padding: '10px 14px', borderRadius: 'var(--radius-sm)',
-                fontSize: '13px', fontWeight: 500
-              }}>
-                ⚠️ {error}
-              </div>
-            )}
-
+        {/* Role tabs */}
+        <div style={{ display: 'flex', borderBottom: '1px solid #eef0f5' }}>
+          {ROLES.map(({ key, Icon, label }) => (
             <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary"
-              style={{ width: '100%', justifyContent: 'center', fontSize: '15px', padding: '12px', marginTop: '4px' }}
+              key={key}
+              type="button"
+              onClick={() => { setRole(key); setError(''); }}
+              style={{
+                flex: 1,
+                padding: '12px 6px',
+                border: 'none',
+                background: 'none',
+                fontSize: 13,
+                fontWeight: role === key ? 700 : 500,
+                color: role === key ? '#1a4fa0' : '#9097b1',
+                borderBottom: role === key ? '2.5px solid #1a4fa0' : '2.5px solid transparent',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              }}
             >
-              {loading ? '⏳ Signing in...' : '🔐 Sign In'}
+              <Icon size={14} />
+              {label}
             </button>
-          </form>
+          ))}
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} style={{ padding: '20px 24px 18px' }}>
+          {role === 'student' && (
+            <div className="form-group">
+              <label className="label" htmlFor="roll">Roll Number</label>
+              <input
+                id="roll"
+                className="input"
+                placeholder="e.g. KNP001"
+                autoFocus
+                value={roll}
+                onChange={(e) => setRoll(e.target.value)}
+              />
+            </div>
+          )}
+
+          {role === 'centre' && (
+            <div className="form-group">
+              <label className="label" htmlFor="centre">Select Centre</label>
+              <select
+                id="centre"
+                className="input select"
+                value={centre}
+                onChange={(e) => setCentre(e.target.value)}
+              >
+                {Object.keys(CENTERS).map((c) => (
+                  <option key={c} value={c}>{c} — {CENTERS[c]?.name || c}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {role === 'admin' && (
+            <>
+              <div className="form-group">
+                <label className="label" htmlFor="username">Username</label>
+                <input
+                  id="username"
+                  className="input"
+                  placeholder="Admin username"
+                  autoFocus
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="label" htmlFor="password">Password</label>
+                <input
+                  id="password"
+                  className="input"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+
+          {error && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'var(--red-bg)',
+              color: 'var(--red)',
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: 13,
+              marginBottom: 12,
+            }}>
+              <AlertCircle size={15} style={{ flexShrink: 0 }} />
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn btn-primary"
+            style={{ width: '100%', justifyContent: 'center', fontSize: 15, padding: 12 }}
+          >
+            <LogIn size={16} />
+            {loading ? 'Signing in…' : 'Sign In'}
+          </button>
+        </form>
+
+        <div style={{
+          textAlign: 'center',
+          padding: '0 24px 18px',
+          fontSize: 12,
+          color: '#9097b1',
+          borderTop: '1px solid #f0f0f0',
+          paddingTop: 12,
+        }}>
+          Developed by <strong style={{ color: '#1a4fa0' }}>Ajaya Kumar</strong> — Trainee Faculty, CSRL
+          <div style={{ marginTop: 3, fontSize: 11 }}>OIL India Super 30 · 2024–25</div>
         </div>
       </div>
     </div>

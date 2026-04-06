@@ -29,7 +29,7 @@ const SUBJECT_ALIASES = {
   MAT: "Math",
 };
 
-function parseTestColumn(col) {
+export function parseTestColumn(col) {
   const raw = String(col || "").trim();
 
   // New format: CAT-1(TEST)_Physics
@@ -447,6 +447,67 @@ export function rankCentres(profiles, tests, testColumns) {
       };
     })
     .sort((a, b) => b.avgScore - a.avgScore)
+    .map((c, i) => ({ ...c, rank: i + 1 }));
+}
+
+/**
+ * Rank centres by average score for a single test column (e.g. one subject column or total).
+ * Matches prototype "Centre Leaderboard" behaviour for the selected test key.
+ */
+export function rankCentresByTestKey(profiles, tests, testKey, testColumns) {
+  if (!testKey || !profiles?.length) return [];
+
+  const centreAgg = {};
+  profiles.forEach((p) => {
+    const code = p.centerCode || "UNKNOWN";
+    const st = tests.find((t) => t.ROLL_KEY === p.ROLL_KEY);
+    if (!st) return;
+    const raw = st[testKey];
+    if (!hasUsableScore(raw)) return;
+    const mark = parseFloat(raw);
+    if (isNaN(mark)) return;
+    if (!centreAgg[code]) {
+      centreAgg[code] = { sum: 0, count: 0, max: -Infinity };
+    }
+    centreAgg[code].sum += mark;
+    centreAgg[code].count += 1;
+    centreAgg[code].max = Math.max(centreAgg[code].max, mark);
+  });
+
+  const studentCountBy = {};
+  profiles.forEach((p) => {
+    const c = p.centerCode || "UNKNOWN";
+    studentCountBy[c] = (studentCountBy[c] || 0) + 1;
+  });
+
+  return Object.entries(centreAgg)
+    .map(([code, s]) => {
+      const tested = s.count;
+      const avg = tested ? Math.round(s.sum / tested) : 0;
+      const top = s.max === -Infinity ? 0 : s.max;
+      const studentCount = studentCountBy[code] || 0;
+      const rollsInCentre = new Set(
+        profiles
+          .filter((p) => (p.centerCode || "UNKNOWN") === code)
+          .map((p) => p.ROLL_KEY)
+      );
+      const testsSubset = tests.filter((t) => rollsInCentre.has(t.ROLL_KEY));
+      let weakSubject = "N/A";
+      if (testColumns?.length) {
+        const analysis = getCentreWeakSubjectAnalysis(testsSubset, testColumns);
+        if (analysis.length) weakSubject = analysis[0].subject;
+      }
+      return {
+        code,
+        avg,
+        top,
+        tested,
+        studentCount,
+        weakSubject,
+      };
+    })
+    .filter((c) => c.tested > 0)
+    .sort((a, b) => b.avg - a.avg)
     .map((c, i) => ({ ...c, rank: i + 1 }));
 }
 

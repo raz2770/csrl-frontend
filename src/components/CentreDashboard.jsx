@@ -1,30 +1,43 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { fetchCenterDataApi, getRankingsByTest, calculateAnalytics, getSubjectAverages } from '../services/dataService';
+import { LayoutDashboard, Trophy, Users, AlertTriangle, BarChart2, TrendingUp, Building2, ArrowLeft, Loader2, Search } from 'lucide-react';
+import { fetchCenterDataApi, getRankingsByTest, calculateAnalytics } from '../services/dataService';
 import { useAuth } from '../context/AuthContext';
 import StudentProfileView from './StudentProfileView';
+import { CENTERS } from '../config/centers';
+
+const TABS = [
+  { key: 'overview',   Icon: LayoutDashboard, label: 'Overview'  },
+  { key: 'topbottom',  Icon: Trophy,          label: 'Rankings'  },
+  { key: 'students',   Icon: Users,           label: 'Students'  },
+];
+
+function getInitials(name = '') {
+  return name.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+}
 
 export default function CentreDashboard() {
-  const { activePage } = useOutletContext();
+  const { activePage, setActivePage } = useOutletContext();
   const { user: auth } = useAuth();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+
+  const [data,             setData]             = useState(null);
+  const [loading,          setLoading]          = useState(true);
+  const [error,            setError]            = useState('');
   const [viewingStudentId, setViewingStudentId] = useState(null);
-  const [selectedTestKey, setSelectedTestKey] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('ALL');
+  const [selectedTestKey,  setSelectedTestKey]  = useState('');
+  const [searchTerm,       setSearchTerm]       = useState('');
+
+  const centreTitle = CENTERS[auth.centerCode]?.name || auth.name || auth.centerCode;
 
   useEffect(() => {
     fetchCenterDataApi(null, auth.centerCode)
-      .then(d => {
+      .then((d) => {
         setData(d);
         const rankingCols = (d.testColumns || []).filter((c) => !String(c).includes('_'));
-        const candidate = rankingCols.length ? rankingCols[rankingCols.length - 1] : d.testColumns?.[0];
+        const candidate   = rankingCols.length ? rankingCols[rankingCols.length - 1] : d.testColumns?.[0];
         if (candidate) setSelectedTestKey(candidate);
       })
-      .catch(err => setError('Failed to load: ' + err.message))
+      .catch((err) => setError('Failed to load: ' + err.message))
       .finally(() => setLoading(false));
   }, [auth.centerCode]);
 
@@ -33,10 +46,10 @@ export default function CentreDashboard() {
     [data]
   );
 
-  const analytics = useMemo(() => {
-    if (!data) return { totalStudents: 0, avgJee: 'N/A', highestJee: 'N/A' };
-    return calculateAnalytics(data.profiles);
-  }, [data]);
+  const analytics = useMemo(
+    () => data ? calculateAnalytics(data.profiles) : { totalStudents: 0 },
+    [data]
+  );
 
   const rankings = useMemo(() => {
     if (!data || !selectedTestKey) return { top10: [], bottom10: [], absentCount: 0 };
@@ -45,58 +58,83 @@ export default function CentreDashboard() {
 
   const filteredStudents = useMemo(() => {
     if (!data) return [];
-    return data.profiles.filter(p => {
-      const matchSearch = (p["STUDENT'S NAME"] || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (p.ROLL_KEY || '').toLowerCase().includes(searchTerm.toLowerCase());
-      const matchCat = filterCategory === 'ALL' || p.CATEGORY === filterCategory;
-      return matchSearch && matchCat;
-    });
-  }, [data, searchTerm, filterCategory]);
+    const q = searchTerm.toLowerCase();
+    return data.profiles.filter((p) =>
+      (p["STUDENT'S NAME"] || '').toLowerCase().includes(q) ||
+      (p.ROLL_KEY || '').toLowerCase().includes(q)
+    );
+  }, [data, searchTerm]);
 
-  const categories = useMemo(() => {
-    const cats = new Set(data?.profiles.map(p => p.CATEGORY).filter(Boolean));
-    return ['ALL', ...Array.from(cats)];
-  }, [data]);
-
-  // Weak subject from test averages
   const weakSubject = useMemo(() => {
     if (!data || !data.testColumns.length) return 'N/A';
-    const totals = {}, counts = {};
-    data.testColumns.forEach(col => {
+    const totals = {};
+    const counts = {};
+    data.testColumns.forEach((col) => {
       const parts = col.split(' ');
-      const sub = parts.length > 1 ? parts[0] : col;
-      data.tests.forEach(t => {
+      const sub   = parts.length > 1 ? parts[0] : col;
+      data.tests.forEach((t) => {
         const m = parseFloat(t[col]);
-        if (!isNaN(m)) { totals[sub] = (totals[sub]||0)+m; counts[sub] = (counts[sub]||0)+1; }
+        if (!isNaN(m)) {
+          totals[sub] = (totals[sub] || 0) + m;
+          counts[sub] = (counts[sub] || 0) + 1;
+        }
       });
     });
     if (!Object.keys(totals).length) return 'N/A';
-    return Object.entries(totals).sort((a,b)=>(a[1]/counts[a[0]])-(b[1]/counts[b[0]]))[0][0];
+    return Object.entries(totals).sort((a, b) => a[1] / counts[a[0]] - b[1] / counts[b[0]])[0][0];
   }, [data]);
 
-  // Subject averages — must stay here (above early returns) to follow Rules of Hooks
-  const subjectAverages = useMemo(() => {
-    if (!data) return [];
-    return getSubjectAverages(data.tests, data.testColumns);
-  }, [data]);
+  const testMarks = useMemo(() => {
+    if (!data || !selectedTestKey) return [];
+    const rolls = new Set(data.profiles.map((p) => p.ROLL_KEY));
+    return data.tests
+      .filter((t) => rolls.has(t.ROLL_KEY))
+      .map((t) => ({ ...t, score: parseFloat(t[selectedTestKey]) }))
+      .filter((t) => !isNaN(t.score));
+  }, [data, selectedTestKey]);
 
-  if (loading) return (
-    <div style={{ display:'flex', height:'60vh', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:'14px', color:'var(--gray-400)' }}>
-      <div style={{ fontSize:'40px', animation:'spin 1s linear infinite' }}>⏳</div>
-      <p style={{ fontWeight:600 }}>Loading {auth.name}...</p>
-    </div>
+  const avgScore = useMemo(
+    () => testMarks.length ? Math.round(testMarks.reduce((s, m) => s + m.score, 0) / testMarks.length) : 0,
+    [testMarks]
+  );
+  const topScore = useMemo(
+    () => testMarks.length ? Math.max(...testMarks.map((m) => m.score)) : 0,
+    [testMarks]
   );
 
-  if (error) return <div style={{ color:'var(--red)', padding:'32px', textAlign:'center' }}>{error}</div>;
+  // ── Render states ─────────────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', height: '60vh', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14, color: 'var(--gray-400)' }}>
+        <Loader2 size={36} className="spin" />
+        <p style={{ fontWeight: 600 }}>Loading {centreTitle}…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--red)', padding: 32, justifyContent: 'center' }}>
+        <AlertTriangle size={20} />
+        {error}
+      </div>
+    );
+  }
 
   if (viewingStudentId) {
-    const profile = data.profiles.find(p => p.ROLL_KEY === viewingStudentId);
-    const studentTests = data.tests.find(t => t.ROLL_KEY === viewingStudentId) || {};
+    const profile      = data.profiles.find((p) => p.ROLL_KEY === viewingStudentId);
+    const studentTests = data.tests.find((t) => t.ROLL_KEY === viewingStudentId) || {};
     return (
       <div className="fade-in">
         <div className="page-header">
-          <button onClick={() => setViewingStudentId(null)} className="btn btn-sm" style={{ background:'rgba(255,255,255,.15)', color:'#fff', border:'none', marginRight:'8px' }}>
-            ← Back
+          <button
+            type="button"
+            onClick={() => setViewingStudentId(null)}
+            className="btn btn-sm"
+            style={{ background: 'rgba(255,255,255,.15)', color: '#fff', border: 'none', marginRight: 8, gap: 5 }}
+          >
+            <ArrowLeft size={14} /> Back
           </button>
           <div>
             <h1>Student Profile</h1>
@@ -110,222 +148,180 @@ export default function CentreDashboard() {
     );
   }
 
-  const rankClass = (i) => i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
+  // ── Section components ────────────────────────────────────────────────────────
 
-  const pageTitle = { dashboard: 'Dashboard', rankings: 'Test Rankings', students: 'My Students', trends: 'Subject Trends' };
-
-  // ─── STUDENTS PAGE ────────────────────────────────────────────────────────────
-  const StudentsSection = () => (
-    <div className="card">
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px', flexWrap:'wrap', gap:'10px' }}>
-        <div className="section-title" style={{ margin:0 }}>👥 Student Directory ({filteredStudents.length})</div>
-        <div className="search-row" style={{ margin:0 }}>
-          <input type="text" className="input" style={{ width:200 }} placeholder="Search name or roll..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-          <select className="input select" style={{ width:130 }} value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
-            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
+  const OverviewSection = () => {
+    const statCards = [
+      { Icon: Users,         value: analytics.totalStudents, label: 'Students',     bg: '#e8f0fc', color: '#1a4fa0' },
+      { Icon: AlertTriangle, value: weakSubject,             label: 'Weak Subject', bg: '#fdecea', color: 'var(--red)' },
+      { Icon: BarChart2,     value: avgScore,                label: 'Avg Score',    bg: '#e6f5ed', color: '#1a6e3b' },
+      { Icon: TrendingUp,    value: topScore,                label: 'Top Score',    bg: '#fff3e0', color: '#b45309' },
+    ];
+    return (
+      <div className="grid-4">
+        {statCards.map(({ Icon, value, label, bg, color }) => (
+          <div className="stat-card" key={label}>
+            <div className="stat-icon" style={{ background: bg }}>
+              <Icon size={20} color={color} aria-hidden="true" />
+            </div>
+            <div>
+              <div className="stat-val" style={{ color }}>{value}</div>
+              <div className="stat-lbl">{label}</div>
+            </div>
+          </div>
+        ))}
       </div>
-      <div style={{ overflowX:'auto', maxHeight:'600px', overflowY:'auto' }}>
+    );
+  };
+
+  const RankingsPair = () => (
+    <div className="grid-2">
+      <div className="card">
+        <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <TrendingUp size={14} aria-hidden="true" />
+          Top 10 — {selectedTestKey}
+        </div>
         <table className="table">
-          <thead><tr><th>Roll No</th><th>Name</th><th>Category</th><th>Action</th></tr></thead>
+          <thead><tr><th>#</th><th>Student</th><th>Total</th></tr></thead>
           <tbody>
-            {filteredStudents.map((s, i) => (
-              <tr key={i}>
-                <td style={{ fontWeight:700, color:'var(--csrl-blue)', fontFamily:'monospace' }}>{s.ROLL_KEY}</td>
+            {rankings.top10.map((s) => {
+              const rankColor = s.rank === 1 ? '#d97706' : s.rank === 2 ? '#6b7280' : s.rank === 3 ? '#c2410c' : 'inherit';
+              return (
+                <tr key={s.roll}>
+                  <td><span style={{ fontWeight: 800, color: rankColor }}>{s.rank}</span></td>
+                  <td>
+                    <div className="student-row">
+                      <div className="avatar">{getInitials(s.name)}</div>
+                      <span style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</span>
+                    </div>
+                  </td>
+                  <td><strong style={{ color: '#1a4fa0' }}>{s.marks}</strong></td>
+                </tr>
+              );
+            })}
+            {!rankings.top10.length && (
+              <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: 20 }}>No data</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="card">
+        <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <AlertTriangle size={14} color="var(--red)" aria-hidden="true" />
+          Bottom 10 — {selectedTestKey}
+        </div>
+        <table className="table">
+          <thead><tr><th>Rank</th><th>Student</th><th>Total</th></tr></thead>
+          <tbody>
+            {rankings.bottom10.map((s) => (
+              <tr key={s.roll}>
+                <td style={{ color: 'var(--red)', fontWeight: 700 }}>#{s.rank}</td>
                 <td>
                   <div className="student-row">
-                    {s['STUDENT PHOTO URL']
-                      ? <img src={s['STUDENT PHOTO URL']} style={{width:32,height:32,borderRadius:'50%',objectFit:'cover'}} alt="" referrerPolicy="no-referrer"/>
-                      : <div className="avatar" style={{width:32,height:32,fontSize:12}}>{(s["STUDENT'S NAME"]||'?')[0]}</div>
-                    }
-                    <span style={{ fontWeight:600 }}>{s["STUDENT'S NAME"]}</span>
+                    <div className="avatar" style={{ background: '#fdecea', color: 'var(--red)' }}>{getInitials(s.name)}</div>
+                    <span style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</span>
                   </div>
                 </td>
-                <td><span className={`badge badge-${(s.CATEGORY||'general').toLowerCase()}`}>{s.CATEGORY||'General'}</span></td>
-                <td><button onClick={() => setViewingStudentId(s.ROLL_KEY)} className="btn btn-primary btn-sm">View Profile</button></td>
+                <td><strong style={{ color: 'var(--red)' }}>{s.marks}</strong></td>
               </tr>
             ))}
-            {filteredStudents.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'var(--gray-400)', padding:'32px' }}>No students found</td></tr>}
+            {!rankings.bottom10.length && (
+              <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: 20 }}>No data</td></tr>
+            )}
           </tbody>
         </table>
       </div>
     </div>
   );
 
-  // ─── RANKINGS PAGE ─────────────────────────────────────────────────────────────
-  const RankingsSection = () => (
-    <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
-      <div className="card" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'12px' }}>
-        <div className="section-title" style={{ margin:0 }}>📊 Select Test to Analyze</div>
-        <select className="input select" style={{ width:'auto', minWidth:'200px' }} value={selectedTestKey} onChange={e => setSelectedTestKey(e.target.value)}>
-          {rankingTestColumns.map(col => <option key={col} value={col}>{col}</option>)}
-        </select>
+  const StudentsSection = () => (
+    <div className="card">
+      <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Users size={14} aria-hidden="true" />
+        All Students ({filteredStudents.length})
       </div>
-      <div className="grid-2">
-        <div className="card">
-          <div className="section-title">🏆 Top 10 — {selectedTestKey}</div>
-          <table className="table">
-            <thead><tr><th>#</th><th>Student</th><th>Score</th></tr></thead>
-            <tbody>
-              {rankings.top10.map((s, i) => (
-                <tr key={s.roll}>
-                  <td className={rankClass(i)}>{i + 1}</td>
-                  <td>
-                    <div style={{ fontWeight:600, fontSize:13 }}>{s.name}</div>
-                    <div style={{ fontSize:11, color:'var(--gray-400)', fontFamily:'monospace' }}>{s.roll}</div>
-                  </td>
-                  <td><span className="chip chip-good">{s.marks}</span></td>
-                </tr>
-              ))}
-              {rankings.top10.length === 0 && <tr><td colSpan={3} style={{ textAlign:'center', color:'var(--gray-400)', padding:'20px' }}>No data</td></tr>}
-            </tbody>
-          </table>
-        </div>
-        <div className="card">
-          <div className="section-title">⚠️ Needs Attention</div>
-          <table className="table">
-            <thead><tr><th>#</th><th>Student</th><th>Score</th></tr></thead>
-            <tbody>
-              {rankings.bottom10.map((s, i) => (
-                <tr key={s.roll}>
-                  <td style={{ color:'var(--gray-400)' }}>{i + 1}</td>
-                  <td>
-                    <div style={{ fontWeight:600, fontSize:13 }}>{s.name}</div>
-                    <div style={{ fontSize:11, color:'var(--gray-400)', fontFamily:'monospace' }}>{s.roll}</div>
-                  </td>
-                  <td><span className="chip chip-weak">{s.marks}</span></td>
-                </tr>
-              ))}
-              {rankings.bottom10.length === 0 && <tr><td colSpan={3} style={{ textAlign:'center', color:'var(--gray-400)', padding:'20px' }}>No data</td></tr>}
-            </tbody>
-          </table>
-        </div>
+      <div style={{ marginBottom: 12, position: 'relative', display: 'inline-block' }}>
+        <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)', pointerEvents: 'none' }} />
+        <input
+          className="input"
+          placeholder="Search by name or roll…"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{ maxWidth: 280, paddingLeft: 30 }}
+        />
       </div>
-    </div>
-  );
-
-  // ─── DASHBOARD PAGE ────────────────────────────────────────────────────────────
-  const DashboardSection = () => (
-    <div style={{ display:'flex', flexDirection:'column', gap:'20px' }}>
-      <div className="grid-4">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background:'var(--csrl-blue-light)' }}>👥</div>
-          <div><div className="stat-val" style={{ color:'var(--csrl-blue)' }}>{analytics.totalStudents}</div><div className="stat-lbl">Total Students</div></div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background:'#fff3e0' }}>📈</div>
-          <div><div className="stat-val" style={{ color:'var(--csrl-gold)' }}>{analytics.avgJee}</div><div className="stat-lbl">Avg JEE %ile</div></div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background:'var(--green-bg)' }}>🏅</div>
-          <div><div className="stat-val" style={{ color:'var(--green)' }}>{analytics.highestJee}</div><div className="stat-lbl">Top JEE %ile</div></div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background:'var(--red-bg)' }}>⚠️</div>
-          <div><div className="stat-val" style={{ color:'var(--red)', fontSize:18 }}>{weakSubject}</div><div className="stat-lbl">Weakest Subject</div></div>
-        </div>
-      </div>
-      <RankingsSection />
-    </div>
-  );
-
-  const SubjectTrendsSection = () => {
-    const maxAvg = Math.max(...subjectAverages.map(s => s.avg), 1);
-    const COLORS = ['#1a4fa0','#f5a623','#1a8a4a','#e86b1f','#c0392b','#8e44ad'];
-    return (
-      <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-        {/* Subject cards */}
-        <div className="grid-4">
-          {subjectAverages.map((s, i) => {
-            const isWeak = i === subjectAverages.length - 1;
-            const isTop = i === 0;
-            return (
-              <div key={s.subject} className="stat-card" style={{ borderLeft: `4px solid ${COLORS[i % COLORS.length]}` }}>
-                <div className="stat-icon" style={{ background: isWeak ? 'var(--red-bg)' : isTop ? 'var(--green-bg)' : 'var(--csrl-blue-light)' }}>
-                  {isWeak ? '⚠️' : isTop ? '🏆' : '📊'}
+      <table className="table">
+        <thead>
+          <tr><th>Roll</th><th>Name</th><th>Category</th><th>Mobile</th></tr>
+        </thead>
+        <tbody>
+          {filteredStudents.map((s) => (
+            <tr key={s.ROLL_KEY}>
+              <td><strong style={{ color: '#1a4fa0' }}>{s.ROLL_KEY}</strong></td>
+              <td>
+                <div className="student-row">
+                  <div className="avatar">{getInitials(s["STUDENT'S NAME"])}</div>
+                  <strong>{s["STUDENT'S NAME"]}</strong>
                 </div>
-                <div>
-                  <div className="stat-val" style={{ color: COLORS[i % COLORS.length], fontSize: 20 }}>{s.avg}</div>
-                  <div className="stat-lbl">{s.subject} {isWeak ? '(Weakest)' : isTop ? '(Strongest)' : ''}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Bar chart */}
-        <div className="card">
-          <div className="section-title">📊 Subject-wise Average Score</div>
-          {subjectAverages.length > 0 ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={subjectAverages} margin={{ top:10, right:20, left:-10, bottom:5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--gray-100)" />
-                <XAxis dataKey="subject" tick={{ fontSize:13, fill:'var(--gray-600)' }} />
-                <YAxis tick={{ fontSize:12, fill:'var(--gray-400)' }} />
-                <Tooltip
-                  contentStyle={{ background:'var(--white)', border:'1px solid var(--gray-100)', borderRadius:8, fontSize:13 }}
-                  formatter={(val) => [`${val} avg marks`, 'Average']}
-                />
-                <Bar dataKey="avg" radius={[6,6,0,0]}>
-                  {subjectAverages.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <p style={{ color:'var(--gray-400)', textAlign:'center', padding:32 }}>No test data available yet.</p>
+              </td>
+              <td><span className={`badge badge-${(s.CATEGORY || 'general').toLowerCase()}`}>{s.CATEGORY || 'General'}</span></td>
+              <td style={{ fontSize: 13, color: 'var(--gray-600)' }}>{s['Mobile No.'] || '—'}</td>
+            </tr>
+          ))}
+          {!filteredStudents.length && (
+            <tr><td colSpan={4} style={{ textAlign: 'center', padding: 24, color: 'var(--gray-400)' }}>No students found.</td></tr>
           )}
-        </div>
+        </tbody>
+      </table>
+    </div>
+  );
 
-        {/* Raw avg table */}
-        <div className="card">
-          <div className="section-title">📋 Subject Performance Details</div>
-          <table className="table">
-            <thead><tr><th>Subject</th><th>Avg Score</th><th>Data Points</th><th>Status</th></tr></thead>
-            <tbody>
-              {subjectAverages.map((s, i) => (
-                <tr key={s.subject}>
-                  <td style={{ fontWeight:700 }}>{s.subject}</td>
-                  <td>
-                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                      <div className="progress-bar" style={{ flex:1 }}>
-                        <div className="progress-fill" style={{ width:`${Math.round((s.avg/maxAvg)*100)}%`, background:COLORS[i%COLORS.length] }} />
-                      </div>
-                      <span style={{ fontWeight:700, color:COLORS[i%COLORS.length], minWidth:30 }}>{s.avg}</span>
-                    </div>
-                  </td>
-                  <td style={{ color:'var(--gray-600)' }}>{s.count} records</td>
-                  <td>
-                    {i === 0 && <span className="chip chip-good">🏆 Strongest</span>}
-                    {i === subjectAverages.length - 1 && i !== 0 && <span className="chip chip-weak">⚠️ Focus Needed</span>}
-                    {i > 0 && i < subjectAverages.length - 1 && <span className="chip" style={{ background:'#f1f5f9', color:'var(--gray-600)' }}>ℹ️ Average</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  };
+  // ── Main render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="fade-in">
       <div className="page-header">
-        <h1>🏢 {auth.name} — {pageTitle[activePage] || 'Dashboard'}</h1>
-        <p style={{ marginTop:4, opacity:.75, fontSize:13 }}>Centre Performance Hub</p>
+        <div style={{ padding: 10, borderRadius: 10, background: 'rgba(255,255,255,.15)', flexShrink: 0 }}>
+          <Building2 size={24} color="#fff" aria-hidden="true" />
+        </div>
+        <div>
+          <h1>{centreTitle}</h1>
+          <p>{data.profiles.length} students · Super 30</p>
+        </div>
+        <div style={{ marginLeft: 'auto' }}>
+          <select
+            className="input select"
+            value={selectedTestKey}
+            onChange={(e) => setSelectedTestKey(e.target.value)}
+            style={{ background: 'rgba(255,255,255,.15)', color: '#fff', borderColor: 'rgba(255,255,255,.3)', width: 200 }}
+          >
+            {rankingTestColumns.map((t) => <option key={t} value={t} style={{ color: '#333' }}>{t}</option>)}
+          </select>
+        </div>
       </div>
+
       <div className="content">
-        {activePage === 'students' ? <StudentsSection /> :
-         activePage === 'rankings' ? <RankingsSection /> :
-         activePage === 'trends' ? <SubjectTrendsSection /> :
-         <DashboardSection />}
+        <div style={{ marginBottom: 14 }}>
+          <div className="tab-bar">
+            {TABS.map(({ key, Icon, label }) => (
+              <button
+                key={key}
+                type="button"
+                className={`tab${activePage === key ? ' active' : ''}`}
+                onClick={() => setActivePage(key)}
+              >
+                <Icon size={13} aria-hidden="true" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {activePage === 'overview'   && <OverviewSection />}
+        {activePage === 'topbottom'  && <RankingsPair />}
+        {activePage === 'students'   && <StudentsSection />}
       </div>
     </div>
   );
 }
-
-
-

@@ -1,121 +1,204 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useEffect, useState } from 'react';
+import { CENTERS } from '../config/centers';
+import Logo from './Logo';
+import {
+  Trophy,
+  LayoutDashboard,
+  Users,
+  FileText,
+  Upload,
+  TrendingUp,
+  TrendingDown,
+  User,
+  BarChart2,
+  ClipboardList,
+  LogOut,
+} from 'lucide-react';
 
-const NAV_ITEMS = {
-  ADMIN: [
-    { label: 'Dashboard', icon: '🏠', id: 'dashboard' },
-    { label: 'Centre Rankings', icon: '🏆', id: 'centre-rankings' },
-    { label: 'Student Database', icon: '👥', id: 'students' },
-    { label: 'Import / Export', icon: '📤', id: 'import-export' },
-    { label: 'Test Rankings', icon: '📊', id: 'rankings' },
-  ],
-  CENTRE: [
-    { label: 'Dashboard', icon: '🏠', id: 'dashboard' },
-    { label: 'Rankings', icon: '🏆', id: 'rankings' },
-    { label: 'Subject Trends', icon: '📈', id: 'trends' },
-    { label: 'My Students', icon: '👥', id: 'students' },
-  ],
-  STUDENT: [
-    { label: 'My Profile', icon: '👤', id: 'profile' },
-    { label: 'My Scores', icon: '📋', id: 'scores' },
-  ],
-};
+const ADMIN_NAV = [
+  { section: 'Overview' },
+  { key: 'leaderboard', Icon: Trophy,         label: 'Centre Leaderboard' },
+  { key: 'overview',    Icon: LayoutDashboard, label: 'Dashboard'          },
+  { section: 'Data Management' },
+  { key: 'students',    Icon: Users,           label: 'Students'           },
+  { key: 'marks',       Icon: FileText,        label: 'Test Marks'         },
+  { section: 'Import' },
+  { key: 'import',      Icon: Upload,          label: 'Import Excel'       },
+  { section: 'Rankings' },
+  { key: 'top30',       Icon: TrendingUp,      label: 'Top 30'             },
+  { key: 'bottom30',    Icon: TrendingDown,    label: 'Bottom 30'          },
+];
+
+const CENTRE_NAV = [
+  { key: 'overview',   Icon: LayoutDashboard, label: 'Overview'  },
+  { key: 'topbottom',  Icon: Trophy,          label: 'Rankings'  },
+  { key: 'students',   Icon: Users,           label: 'Students'  },
+];
+
+const STUDENT_NAV = [
+  { key: 'profile',     Icon: User,          label: 'Profile'     },
+  { key: 'performance', Icon: BarChart2,     label: 'Performance' },
+  { key: 'marks',       Icon: ClipboardList, label: 'Records'     },
+];
+
+function centreDisplayName(code) {
+  return CENTERS[code]?.name || code || '';
+}
+
+function initials(name = '') {
+  return name.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+}
 
 export default function Layout() {
   const { user: auth, logout } = useAuth();
   const navigate = useNavigate();
-  const [activePage, setActivePage] = useState('dashboard');
+  const [activePage, setActivePage] = useState(() => {
+    if (auth?.role === 'ADMIN')   return 'leaderboard';
+    if (auth?.role === 'CENTRE')  return 'overview';
+    return 'profile';
+  });
+
+  const role = auth?.role;
+  const navItems = role === 'ADMIN' ? ADMIN_NAV : role === 'CENTRE' ? CENTRE_NAV : STUDENT_NAV;
 
   useEffect(() => {
-    const firstNav = NAV_ITEMS[auth?.role]?.[0]?.id || 'dashboard';
-    setActivePage(firstNav);
-  }, [auth?.role]);
+    if (role === 'ADMIN')   setActivePage('leaderboard');
+    else if (role === 'CENTRE') setActivePage('overview');
+    else if (role === 'STUDENT') setActivePage('profile');
+  }, [role]);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
-  const navItems = NAV_ITEMS[auth?.role] || [];
-  const initials = (auth?.name || auth?.id || 'U')
-    .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const userInitials = initials(auth?.name || auth?.id || 'U');
+
+  const sidebarUser =
+    role === 'ADMIN'
+      ? 'CSRL Admin'
+      : role === 'CENTRE'
+        ? `${auth?.centerCode || auth?.id || ''} — ${centreDisplayName(auth?.centerCode)}`
+        : auth?.name || auth?.id || 'Student';
+
+  const sidebarRole =
+    role === 'ADMIN'
+      ? 'Super Administrator'
+      : role === 'CENTRE'
+        ? 'Centre Login'
+        : `${auth?.id || ''} · ${auth?.centerCode || ''}`;
 
   return (
     <div className="layout">
-      {/* Sidebar */}
       <aside className="sidebar">
+        {/* Logo */}
         <div className="sidebar-logo">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 40, height: 40, background: '#fff', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, boxShadow: 'var(--shadow)' }}>
-              <img src="/logo.png" alt="CSRL" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-            </div>
-            <div>
-              <div style={{ color: '#fff', fontWeight: 700, fontSize: 13, lineHeight: 1.2 }}>CSRL</div>
-              <div style={{ color: 'rgba(255,255,255,.55)', fontSize: 11, lineHeight: 1.2 }}>Performance Hub</div>
-            </div>
+          <Logo size={34} />
+          <div>
+            <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>CSRL</div>
+            <div style={{ color: 'rgba(255,255,255,.5)', fontSize: 10 }}>Super 30</div>
           </div>
         </div>
 
-        <nav className="sidebar-nav">
-          {navItems.map(item => (
-            <div
-              key={item.id}
-              className={`nav-item${activePage === item.id ? ' active' : ''}`}
-              onClick={() => setActivePage(item.id)}
-            >
-              <span className="nav-icon">{item.icon}</span>
-              {item.label}
-            </div>
-          ))}
+        {/* Logged-in user info */}
+        <div style={{ padding: '10px 18px 8px', borderBottom: '1px solid rgba(255,255,255,.08)' }}>
+          <div style={{ color: 'rgba(255,255,255,.45)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>
+            Logged in as
+          </div>
+          <div style={{ color: '#fff', fontWeight: 600, fontSize: 13, wordBreak: 'break-word' }}>
+            {sidebarUser}
+          </div>
+          <div style={{ color: 'rgba(255,255,255,.45)', fontSize: 11, marginTop: 2 }}>
+            {sidebarRole}
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="sidebar-nav" aria-label="Main navigation">
+          {navItems.map((item) =>
+            item.section ? (
+              <div key={item.section} className="nav-section" aria-hidden="true">
+                {item.section}
+              </div>
+            ) : (
+              <button
+                key={item.key}
+                type="button"
+                className={`nav-item${activePage === item.key ? ' active' : ''}`}
+                onClick={() => setActivePage(item.key)}
+                aria-current={activePage === item.key ? 'page' : undefined}
+              >
+                <item.Icon size={15} aria-hidden="true" />
+                {item.label}
+              </button>
+            )
+          )}
         </nav>
 
-        {/* User footer */}
-        <div style={{ borderTop: '1px solid rgba(255,255,255,.1)', padding: '14px 18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <div className="avatar" style={{ width: 32, height: 32, fontSize: 12 }}>{initials}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: '#fff', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{auth?.name || auth?.id}</div>
-              <div style={{ color: 'rgba(255,255,255,.5)', fontSize: 11 }}>{auth?.role}</div>
-            </div>
-          </div>
+        {/* Logout */}
+        <div style={{ padding: '10px 16px', borderTop: '1px solid rgba(255,255,255,.08)' }}>
           <button
+            type="button"
+            className="btn btn-ghost"
             onClick={handleLogout}
-            className="btn btn-sm"
-            style={{ width: '100%', justifyContent: 'center', background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.8)', border: '1px solid rgba(255,255,255,.15)' }}
+            style={{
+              width: '100%',
+              justifyContent: 'center',
+              color: 'rgba(255,255,255,.75)',
+              borderColor: 'rgba(255,255,255,.25)',
+              background: 'transparent',
+              fontSize: 13,
+              gap: 6,
+            }}
           >
-            🚪 Sign Out
+            <LogOut size={14} aria-hidden="true" />
+            Logout
           </button>
         </div>
       </aside>
 
-      {/* Main */}
+      {/* Main content */}
       <div className="main">
-        {/* Mobile topbar */}
+        {/* Mobile top bar */}
         <div className="mobile-topbar" style={{ boxShadow: 'var(--shadow)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <img src="/logo.png" alt="CSRL" style={{ height: 32, width: 'auto' }} />
+            <Logo size={28} />
             <span style={{ color: 'var(--csrl-blue)', fontWeight: 700, fontSize: 14 }}>CSRL</span>
           </div>
-          {/* Mobile bottom nav */}
-          <div className="mobile-nav-strip">
-            {navItems.map(item => (
+
+          <div className="mobile-nav-strip" role="navigation" aria-label="Mobile navigation">
+            {navItems.filter((n) => n.key).map((item) => (
               <button
-                key={item.id}
-                onClick={() => setActivePage(item.id)}
+                key={item.key}
+                type="button"
+                aria-label={item.label}
+                aria-current={activePage === item.key ? 'page' : undefined}
+                onClick={() => setActivePage(item.key)}
                 className="btn btn-sm"
                 style={{
-                  background: activePage === item.id ? 'var(--csrl-blue)' : 'var(--gray-100)',
-                  color: activePage === item.id ? '#fff' : 'var(--gray-600)',
+                  background: activePage === item.key ? 'var(--csrl-blue)' : 'var(--gray-100)',
+                  color: activePage === item.key ? '#fff' : 'var(--gray-600)',
                   padding: '6px 10px',
-                  border: 'none'
+                  border: 'none',
                 }}
               >
-                {item.icon}
+                <item.Icon size={14} />
               </button>
             ))}
           </div>
-          <button onClick={handleLogout} className="btn btn-sm btn-outline">Out</button>
+
+          <button
+            type="button"
+            aria-label={`Logout ${userInitials}`}
+            onClick={handleLogout}
+            className="btn btn-sm btn-outline"
+            style={{ display: 'flex', alignItems: 'center', gap: 5 }}
+          >
+            <LogOut size={13} />
+            <span style={{ fontSize: 11 }}>{userInitials}</span>
+          </button>
         </div>
 
         <Outlet context={{ activePage, setActivePage }} />

@@ -51,6 +51,7 @@ body {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+.spin { animation: spin 1s linear infinite; }
 button {
   cursor: pointer;
   font-family: inherit;
@@ -92,7 +93,6 @@ input, select, textarea {
   background: #fff;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  border: 1px solid rgba(221, 224, 234, .6);
   padding: 20px;
 }
 .badge {
@@ -293,12 +293,16 @@ input, select, textarea {
   align-items: center;
   gap: 10px;
   padding: 11px 18px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
   color: rgba(255,255,255,.75);
   font-size: 14px;
   font-weight: 500;
+  text-align: left;
   cursor: pointer;
   transition: all .15s;
-  border-left: 3px solid transparent;
 }
 .nav-item:hover { background: rgba(255,255,255,.07); color: #fff; }
 .nav-item.active { background: rgba(255,255,255,.12); color: #fff; border-left-color: var(--csrl-gold); }
