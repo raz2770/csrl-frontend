@@ -1,6 +1,4 @@
-import { useMemo } from 'react';
 import { BarChart2 } from 'lucide-react';
-import { rankCentresByTestKey } from '../services/dataService';
 import { CENTERS } from '../config/centers';
 
 function centreLabel(code) {
@@ -20,11 +18,7 @@ function getRankStyle(index) {
 function RankBadge({ index }) {
   const { bg, color } = getRankStyle(index);
   return (
-    <div
-      className="rank-badge"
-      style={{ background: bg, color }}
-      aria-label={`Rank ${index + 1}`}
-    >
+    <div className="rank-badge" style={{ background: bg, color }} aria-label={`Rank ${index + 1}`}>
       {index + 1}
     </div>
   );
@@ -39,37 +33,27 @@ const Empty = ({ message }) => (
 
 const pct = (a, x) => (x > 0 ? Math.round((a / x) * 100) : 0);
 
-/** Centre rankings for a selected test column */
-export default function CentreLeaderboard({ profiles, tests, testColumns, selTest }) {
-  const centreStats = useMemo(
-    () => rankCentresByTestKey(profiles || [], tests || [], selTest, testColumns || []),
-    [profiles, tests, testColumns, selTest]
-  );
-
+/**
+ * CentreLeaderboard
+ *
+ * Props:
+ *   centreStats  — array from backend /api/analytics/centre-leaderboard
+ *                  [{ rank, code, avg, top, tested, studentCount, weakSubject }]
+ *   selTest      — selected test key (for display only)
+ */
+export default function CentreLeaderboard({ centreStats = [], selTest }) {
   if (!selTest) return <Empty message="Select a test to view rankings" />;
-  if (!centreStats.length) {
-    return (
-      <Empty
-        message={`No test data for ${selTest}`}
-        sub="Upload marks to see centre rankings"
-      />
-    );
-  }
+  if (!centreStats.length) return <Empty message={`No test data for ${selTest}`} />;
 
-  const maxAvg = centreStats[0].avg || 1;
+  const maxAvg = centreStats[0]?.avg || 1;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {centreStats.map((centre, index) => {
         const { color, border } = getRankStyle(index);
         return (
-          <div
-            key={centre.code}
-            className="centre-rank-card"
-            style={{ borderLeftColor: border }}
-          >
+          <div key={centre.code} className="centre-rank-card" style={{ borderLeftColor: border }}>
             <RankBadge index={index} />
-
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: 700, fontSize: 15 }}>{centreLabel(centre.code)}</span>
@@ -83,21 +67,14 @@ export default function CentreLeaderboard({ profiles, tests, testColumns, selTes
                   Weak: {centre.weakSubject}
                 </span>
               </div>
-
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ flex: 1 }}>
                   <div className="progress-bar" style={{ height: 10 }}>
-                    <div
-                      className="progress-fill"
-                      style={{ width: `${pct(centre.avg, maxAvg)}%`, background: color }}
-                    />
+                    <div className="progress-fill" style={{ width: `${pct(centre.avg, maxAvg)}%`, background: color }} />
                   </div>
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, minWidth: 90, textAlign: 'right', color: 'var(--gray-800)' }}>
-                  Avg:{' '}
-                  <span style={{ fontSize: 16, color }}>
-                    {centre.avg}
-                  </span>
+                  Avg: <span style={{ fontSize: 16, color }}>{centre.avg}</span>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--gray-400)', minWidth: 60, textAlign: 'right' }}>
                   Top: {centre.top}

@@ -1,23 +1,14 @@
-// Google Sheets Configuration mapping for CSRL Centres
+// Centre registry — add new centres here.
+// Only code and name are needed; Firestore is the data source.
 
 export const CENTERS = {
   'GAIL': {
     code: 'GAIL',
     name: 'GAIL Utkarsh Super 100',
-    profileUrl: 'https://docs.google.com/spreadsheets/d/1fErV1E2cB9Czhai2IEc4AozQKSDUqb2137aE9elIFpA/export?format=csv&gid=0',
-    testUrl: 'https://docs.google.com/spreadsheets/d/1eUe6oDfhU7tpNoS3Ha6F8AGbgBfb-YjZGLFWDtOcLaA/export?format=csv&gid=1941021239'
   },
   'OIL_INDIA': {
     code: 'OIL_INDIA',
     name: 'Oil India Super 30',
-    profileUrl: 'https://docs.google.com/spreadsheets/d/15U2fY_4nyaSL7_-CRvsTmcfDGyWk_NWuAsEgSFZFQWQ/export?format=csv&gid=352406722',
-    testUrl: 'https://docs.google.com/spreadsheets/d/1eUe6oDfhU7tpNoS3Ha6F8AGbgBfb-YjZGLFWDtOcLaA/export?format=csv&gid=1185269559'
-  }
-  // Future Centers can be added here
-  // 'JDH': { code: 'JDH', name: 'Jodhpur', profileUrl: '...', testUrl: '...' },
-};
-
-export const ADMIN_CREDENTIALS = {
-  username: 'admin',
-  password: 'password123'
+  },
+  // 'JDH': { code: 'JDH', name: 'Jodhpur' },
 };

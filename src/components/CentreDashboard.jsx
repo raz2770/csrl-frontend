@@ -1,15 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Trophy, Users, AlertTriangle, BarChart2, TrendingUp, Building2, ArrowLeft, Loader2, Search, Eye } from 'lucide-react';
-import { fetchCenterDataApi, getRankingsByTest, calculateAnalytics } from '../services/dataService';
+import {
+  fetchCenterDataApi,
+  fetchOverview,
+  fetchRankings,
+  fetchSubjectAverages,
+} from '../services/dataService';
 import { useAuth } from '../context/AuthContext';
 import StudentProfileView from './StudentProfileView';
 import { CENTERS } from '../config/centers';
 
 const TABS = [
-  { key: 'overview',   Icon: LayoutDashboard, label: 'Overview'  },
-  { key: 'topbottom',  Icon: Trophy,          label: 'Rankings'  },
-  { key: 'students',   Icon: Users,           label: 'Students'  },
+  { key: 'overview',  Icon: LayoutDashboard, label: 'Overview'  },
+  { key: 'topbottom', Icon: Trophy,          label: 'Rankings'  },
+  { key: 'students',  Icon: Users,           label: 'Students'  },
 ];
 
 function getInitials(name = '') {
@@ -21,6 +26,10 @@ export default function CentreDashboard() {
   const { user: auth } = useAuth();
 
   const [data,             setData]             = useState(null);
+  const [overview,         setOverview]         = useState(null);
+  const [topRanked,        setTopRanked]        = useState([]);
+  const [bottomRanked,     setBottomRanked]     = useState([]);
+  const [subjectAvgs,      setSubjectAvgs]      = useState([]);
   const [loading,          setLoading]          = useState(true);
   const [error,            setError]            = useState('');
   const [viewingStudentId, setViewingStudentId] = useState(null);
@@ -29,78 +38,59 @@ export default function CentreDashboard() {
 
   const centreTitle = CENTERS[auth.centerCode]?.name || auth.name || auth.centerCode;
 
+  // ── Initial load ─────────────────────────────────────────────────────────────
+
   useEffect(() => {
-    fetchCenterDataApi(null, auth.centerCode)
-      .then((d) => {
+    const load = async () => {
+      try {
+        const [d, ov, avgs] = await Promise.all([
+          fetchCenterDataApi(null, auth.centerCode),
+          fetchOverview(null, auth.centerCode).catch(() => null),
+          fetchSubjectAverages(null, auth.centerCode).catch(() => []),
+        ]);
         setData(d);
+        setOverview(ov);
+        setSubjectAvgs(avgs);
+
+        // Select last total-column (no underscore) as default test key
         const rankingCols = (d.testColumns || []).filter((c) => !String(c).includes('_'));
         const candidate   = rankingCols.length ? rankingCols[rankingCols.length - 1] : d.testColumns?.[0];
         if (candidate) setSelectedTestKey(candidate);
-      })
-      .catch((err) => setError('Failed to load: ' + err.message))
-      .finally(() => setLoading(false));
+      } catch (err) {
+        setError('Failed to load: ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, [auth.centerCode]);
+
+  // ── Reload rankings when selectedTestKey changes ──────────────────────────────
+
+  useEffect(() => {
+    if (!selectedTestKey) return;
+    Promise.all([
+      fetchRankings(null, { testKey: selectedTestKey, centerCode: auth.centerCode, limit: 10, order: 'desc' }).catch(() => ({ ranked: [] })),
+      fetchRankings(null, { testKey: selectedTestKey, centerCode: auth.centerCode, limit: 10, order: 'asc'  }).catch(() => ({ ranked: [] })),
+    ]).then(([top, bottom]) => {
+      setTopRanked(top.ranked    || []);
+      setBottomRanked(bottom.ranked || []);
+    });
+  }, [selectedTestKey, auth.centerCode]);
 
   const rankingTestColumns = useMemo(
     () => (data?.testColumns || []).filter((c) => !String(c).includes('_')),
     [data]
   );
 
-  const analytics = useMemo(
-    () => data ? calculateAnalytics(data.profiles) : { totalStudents: 0 },
-    [data]
-  );
-
-  const rankings = useMemo(() => {
-    if (!data || !selectedTestKey) return { top10: [], bottom10: [], absentCount: 0 };
-    return getRankingsByTest(data.profiles, data.tests, selectedTestKey);
-  }, [data, selectedTestKey]);
-
   const filteredStudents = useMemo(() => {
     if (!data) return [];
     const q = searchTerm.toLowerCase();
     return data.profiles.filter((p) =>
       (p["STUDENT'S NAME"] || '').toLowerCase().includes(q) ||
-      (p.ROLL_KEY || '').toLowerCase().includes(q)
+      (p.ROLL_KEY         || '').toLowerCase().includes(q)
     );
   }, [data, searchTerm]);
-
-  const weakSubject = useMemo(() => {
-    if (!data || !data.testColumns.length) return 'N/A';
-    const totals = {};
-    const counts = {};
-    data.testColumns.forEach((col) => {
-      const parts = col.split(' ');
-      const sub   = parts.length > 1 ? parts[0] : col;
-      data.tests.forEach((t) => {
-        const m = parseFloat(t[col]);
-        if (!isNaN(m)) {
-          totals[sub] = (totals[sub] || 0) + m;
-          counts[sub] = (counts[sub] || 0) + 1;
-        }
-      });
-    });
-    if (!Object.keys(totals).length) return 'N/A';
-    return Object.entries(totals).sort((a, b) => a[1] / counts[a[0]] - b[1] / counts[b[0]])[0][0];
-  }, [data]);
-
-  const testMarks = useMemo(() => {
-    if (!data || !selectedTestKey) return [];
-    const rolls = new Set(data.profiles.map((p) => p.ROLL_KEY));
-    return data.tests
-      .filter((t) => rolls.has(t.ROLL_KEY))
-      .map((t) => ({ ...t, score: parseFloat(t[selectedTestKey]) }))
-      .filter((t) => !isNaN(t.score));
-  }, [data, selectedTestKey]);
-
-  const avgScore = useMemo(
-    () => testMarks.length ? Math.round(testMarks.reduce((s, m) => s + m.score, 0) / testMarks.length) : 0,
-    [testMarks]
-  );
-  const topScore = useMemo(
-    () => testMarks.length ? Math.max(...testMarks.map((m) => m.score)) : 0,
-    [testMarks]
-  );
 
   // ── Render states ─────────────────────────────────────────────────────────────
 
@@ -116,8 +106,7 @@ export default function CentreDashboard() {
   if (error) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--red)', padding: 32, justifyContent: 'center' }}>
-        <AlertTriangle size={20} />
-        {error}
+        <AlertTriangle size={20} />{error}
       </div>
     );
   }
@@ -151,25 +140,55 @@ export default function CentreDashboard() {
   // ── Section components ────────────────────────────────────────────────────────
 
   const OverviewSection = () => {
+    const totalStudents = overview?.totalStudents ?? data.profiles.length;
+    const weakSubject   = overview?.weakSubject   ?? 'N/A';
+    const avgScore      = topRanked.length
+      ? Math.round(topRanked.reduce((s, r) => s + r.marks, 0) / topRanked.length)
+      : 0;
+    const topScore = topRanked.length ? topRanked[0]?.marks ?? 0 : 0;
+
     const statCards = [
-      { Icon: Users,         value: analytics.totalStudents, label: 'Students',     bg: '#e8f0fc', color: '#1a4fa0' },
-      { Icon: AlertTriangle, value: weakSubject,             label: 'Weak Subject', bg: '#fdecea', color: 'var(--red)' },
-      { Icon: BarChart2,     value: avgScore,                label: 'Avg Score',    bg: '#e6f5ed', color: '#1a6e3b' },
-      { Icon: TrendingUp,    value: topScore,                label: 'Top Score',    bg: '#fff3e0', color: '#b45309' },
+      { Icon: Users,         value: totalStudents, label: 'Students',     bg: '#e8f0fc', color: '#1a4fa0' },
+      { Icon: AlertTriangle, value: weakSubject,   label: 'Weak Subject', bg: '#fdecea', color: 'var(--red)' },
+      { Icon: BarChart2,     value: avgScore,      label: 'Avg Score',    bg: '#e6f5ed', color: '#1a6e3b' },
+      { Icon: TrendingUp,    value: topScore,      label: 'Top Score',    bg: '#fff3e0', color: '#b45309' },
     ];
+
     return (
-      <div className="grid-4">
-        {statCards.map(({ Icon, value, label, bg, color }) => (
-          <div className="stat-card" key={label}>
-            <div className="stat-icon" style={{ background: bg }}>
-              <Icon size={20} color={color} aria-hidden="true" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="grid-4">
+          {statCards.map(({ Icon, value, label, bg, color }) => (
+            <div className="stat-card" key={label}>
+              <div className="stat-icon" style={{ background: bg }}>
+                <Icon size={20} color={color} aria-hidden="true" />
+              </div>
+              <div>
+                <div className="stat-val" style={{ color }}>{value}</div>
+                <div className="stat-lbl">{label}</div>
+              </div>
             </div>
-            <div>
-              <div className="stat-val" style={{ color }}>{value}</div>
-              <div className="stat-lbl">{label}</div>
-            </div>
+          ))}
+        </div>
+
+        {subjectAvgs.length > 0 && (
+          <div className="card">
+            <div className="section-title">Subject Performance (avg across all tests)</div>
+            {subjectAvgs.map((s, i) => (
+              <div key={s.subject} style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
+                  <span style={{ fontWeight: i === 0 ? 700 : 400, color: i === 0 ? 'var(--red)' : 'inherit' }}>
+                    {s.subject}
+                    {i === 0 && <AlertTriangle size={12} style={{ marginLeft: 5 }} color="var(--red)" />}
+                  </span>
+                  <span style={{ fontWeight: 600 }}>{s.avg}</span>
+                </div>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: `${Math.min(100, s.avg)}%`, background: i === 0 ? '#e74c3c' : '#1a4fa0' }} />
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     );
   };
@@ -182,12 +201,12 @@ export default function CentreDashboard() {
           Top 10 — {selectedTestKey}
         </div>
         <table className="table">
-          <thead><tr><th>#</th><th>Student</th><th>Total</th></tr></thead>
+          <thead><tr><th>#</th><th>Student</th><th>Stream</th><th>Total</th></tr></thead>
           <tbody>
-            {rankings.top10.map((s) => {
+            {topRanked.map((s) => {
               const rankColor = s.rank === 1 ? '#d97706' : s.rank === 2 ? '#6b7280' : s.rank === 3 ? '#c2410c' : 'inherit';
               return (
-                <tr key={s.roll}>
+                <tr key={s.roll} style={{ cursor: 'pointer' }} onClick={() => setViewingStudentId(s.roll)}>
                   <td><span style={{ fontWeight: 800, color: rankColor }}>{s.rank}</span></td>
                   <td>
                     <div className="student-row">
@@ -195,12 +214,17 @@ export default function CentreDashboard() {
                       <span style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</span>
                     </div>
                   </td>
+                  <td>
+                    <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 3, background: s.stream === 'NEET' ? '#e6f5ed' : '#e8f0fc', color: s.stream === 'NEET' ? '#1a6e3b' : '#1a4fa0', fontWeight: 600 }}>
+                      {s.stream || 'JEE'}
+                    </span>
+                  </td>
                   <td><strong style={{ color: '#1a4fa0' }}>{s.marks}</strong></td>
                 </tr>
               );
             })}
-            {!rankings.top10.length && (
-              <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: 20 }}>No data</td></tr>
+            {!topRanked.length && (
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: 20 }}>No data for {selectedTestKey}</td></tr>
             )}
           </tbody>
         </table>
@@ -214,8 +238,8 @@ export default function CentreDashboard() {
         <table className="table">
           <thead><tr><th>Rank</th><th>Student</th><th>Total</th></tr></thead>
           <tbody>
-            {rankings.bottom10.map((s) => (
-              <tr key={s.roll}>
+            {bottomRanked.map((s) => (
+              <tr key={s.roll} style={{ cursor: 'pointer' }} onClick={() => setViewingStudentId(s.roll)}>
                 <td style={{ color: 'var(--red)', fontWeight: 700 }}>#{s.rank}</td>
                 <td>
                   <div className="student-row">
@@ -226,7 +250,7 @@ export default function CentreDashboard() {
                 <td><strong style={{ color: 'var(--red)' }}>{s.marks}</strong></td>
               </tr>
             ))}
-            {!rankings.bottom10.length && (
+            {!bottomRanked.length && (
               <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: 20 }}>No data</td></tr>
             )}
           </tbody>
@@ -253,17 +277,22 @@ export default function CentreDashboard() {
       </div>
       <table className="table">
         <thead>
-          <tr><th>Roll</th><th>Name</th><th>Category</th><th>Mobile</th><th>Actions</th></tr>
+          <tr><th>Roll</th><th>Name</th><th>Stream</th><th>Category</th><th>Mobile</th><th>Actions</th></tr>
         </thead>
         <tbody>
           {filteredStudents.map((s) => (
-            <tr key={s.ROLL_KEY}>
+            <tr key={s.ROLL_KEY} style={{ cursor: 'pointer' }} onClick={() => setViewingStudentId(s.ROLL_KEY)}>
               <td><strong style={{ color: '#1a4fa0' }}>{s.ROLL_KEY}</strong></td>
               <td>
                 <div className="student-row">
                   <div className="avatar">{getInitials(s["STUDENT'S NAME"])}</div>
                   <strong>{s["STUDENT'S NAME"]}</strong>
                 </div>
+              </td>
+              <td>
+                <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 3, background: s.stream === 'NEET' ? '#e6f5ed' : '#e8f0fc', color: s.stream === 'NEET' ? '#1a6e3b' : '#1a4fa0', fontWeight: 600 }}>
+                  {s.stream || 'JEE'}
+                </span>
               </td>
               <td><span className={`badge badge-${(s.CATEGORY || 'general').toLowerCase()}`}>{s.CATEGORY || 'General'}</span></td>
               <td style={{ fontSize: 13, color: 'var(--gray-600)' }}>{s['Mobile No.'] || '—'}</td>
@@ -297,7 +326,7 @@ export default function CentreDashboard() {
         </div>
         <div>
           <h1>{centreTitle}</h1>
-          <p>{data.profiles.length} students · Super 30</p>
+          <p>{data.profiles.length} students</p>
         </div>
         <div style={{ marginLeft: 'auto' }}>
           <select
@@ -328,9 +357,9 @@ export default function CentreDashboard() {
           </div>
         </div>
 
-        {activePage === 'overview'   && <OverviewSection />}
-        {activePage === 'topbottom'  && <RankingsPair />}
-        {activePage === 'students'   && <StudentsSection />}
+        {activePage === 'overview'  && <OverviewSection />}
+        {activePage === 'topbottom' && <RankingsPair />}
+        {activePage === 'students'  && <StudentsSection />}
       </div>
     </div>
   );

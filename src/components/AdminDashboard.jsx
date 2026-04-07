@@ -10,14 +10,14 @@ import {
 import * as XLSX from 'xlsx';
 import {
   fetchGlobalData,
-  getRankingsByTest,
-  calculateAnalytics,
+  fetchOverview,
+  fetchRankings,
+  fetchCentreLeaderboard,
   addStudentApi,
   updateStudentApi,
   deleteStudentApi,
   upsertTestScoresApi,
   parseTestColumn,
-  getCentreWeakSubjectAnalysis,
   getJeePercentile,
 } from '../services/dataService';
 import { useToast } from '../context/ToastContext';
@@ -33,24 +33,23 @@ const STUDENT_TEMPLATE_COLUMNS = [
   'parent_name', 'parent_mobile', 'address', 'district', 'state', 'pincode',
   'school_10', 'board_10', 'percentage_10', 'school_12', 'board_12',
   'percentage_12', 'future_college', 'weak_subject_manual',
-  'student_photo_url', 'centre',
+  'student_photo_url', 'centre', 'stream',
 ];
 
 const TABS = [
-  { key: 'leaderboard', Icon: Trophy,          label: 'Centre Leaderboard' },
-  { key: 'overview',    Icon: LayoutDashboard,  label: 'Dashboard'          },
-  { key: 'students',    Icon: Users,            label: 'Students'           },
-  { key: 'marks',       Icon: FileText,         label: 'Test Marks'         },
-  { key: 'import',      Icon: Upload,           label: 'Import / Export'    },
-  { key: 'top30',       Icon: TrendingUp,       label: 'Top 30'             },
-  { key: 'bottom30',    Icon: TrendingDown,     label: 'Bottom 30'          },
+  { key: 'leaderboard', Icon: Trophy,         label: 'Centre Leaderboard' },
+  { key: 'overview',    Icon: LayoutDashboard, label: 'Dashboard'          },
+  { key: 'students',    Icon: Users,           label: 'Students'           },
+  { key: 'marks',       Icon: FileText,        label: 'Test Marks'         },
+  { key: 'import',      Icon: Upload,          label: 'Import / Export'    },
+  { key: 'top30',       Icon: TrendingUp,      label: 'Top 30'             },
+  { key: 'bottom30',    Icon: TrendingDown,    label: 'Bottom 30'          },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function normalizeCellValue(v) {
-  if (v === undefined || v === null) return '';
-  return String(v).trim();
+  return (v === undefined || v === null) ? '' : String(v).trim();
 }
 
 function getRowField(row, keys) {
@@ -64,27 +63,29 @@ function mapExcelStudentToProfile(row) {
   const roll   = normalizeCellValue(getRowField(row, ['roll_number', 'ROLL_NUMBER', 'Roll Number', 'roll', 'ROLL_KEY'])).toUpperCase();
   const name   = normalizeCellValue(getRowField(row, ['name', 'Name', "STUDENT'S NAME"]));
   const centre = normalizeCellValue(getRowField(row, ['centre', 'Center', 'center', 'centerCode'])).toUpperCase();
+  const stream = normalizeCellValue(getRowField(row, ['stream', 'Stream', 'STREAM'])).toUpperCase() || 'JEE';
 
   return {
     ROLL_KEY: roll,
     "STUDENT'S NAME": name,
-    centerCode: centre,
-    GENDER:            normalizeCellValue(getRowField(row, ['gender', 'Gender', 'GENDER'])),
-    CATEGORY:          normalizeCellValue(getRowField(row, ['category', 'Category', 'CATEGORY'])),
-    'Mobile No.':      normalizeCellValue(getRowField(row, ['mobile', 'Mobile', 'Mobile No.', 'mobile_no'])),
-    'DATE OF BIRTH':   normalizeCellValue(getRowField(row, ['dob', 'Date of Birth', 'DATE OF BIRTH'])),
-    "FATHER'S NAME":   normalizeCellValue(getRowField(row, ['parent_name', "FATHER'S NAME", 'father_name'])),
-    "MOTHER'S NAME":   normalizeCellValue(getRowField(row, ['mother_name', "MOTHER'S NAME"])),
-    'PARMANENT ADDRESS': normalizeCellValue(getRowField(row, ['address', 'Address', 'PARMANENT ADDRESS'])),
-    DISTRICT:          normalizeCellValue(getRowField(row, ['district', 'DISTRICT'])),
-    STATE:             normalizeCellValue(getRowField(row, ['state', 'STATE'])),
-    PINCODE:           normalizeCellValue(getRowField(row, ['pincode', 'PINCODE'])),
-    '10th SCHOOL NAME':  normalizeCellValue(getRowField(row, ['school_10', '10th SCHOOL NAME'])),
-    '10th BOARD':        normalizeCellValue(getRowField(row, ['board_10', '10th BOARD'])),
-    '10th Precentage':   normalizeCellValue(getRowField(row, ['percentage_10', '10th Precentage'])),
-    '12th SCHOOL NAME':  normalizeCellValue(getRowField(row, ['school_12', '12th SCHOOL NAME'])),
-    '12th BOARD':        normalizeCellValue(getRowField(row, ['board_12', '12th BOARD'])),
-    '12th Precentage':   normalizeCellValue(getRowField(row, ['percentage_12', '12th Precentage'])),
+    centerCode:                centre,
+    stream:                    stream === 'NEET' ? 'NEET' : 'JEE',
+    GENDER:                    normalizeCellValue(getRowField(row, ['gender', 'Gender', 'GENDER'])),
+    CATEGORY:                  normalizeCellValue(getRowField(row, ['category', 'Category', 'CATEGORY'])),
+    'Mobile No.':              normalizeCellValue(getRowField(row, ['mobile', 'Mobile', 'Mobile No.', 'mobile_no'])),
+    'DATE OF BIRTH':           normalizeCellValue(getRowField(row, ['dob', 'Date of Birth', 'DATE OF BIRTH'])),
+    "FATHER'S NAME":           normalizeCellValue(getRowField(row, ['parent_name', "FATHER'S NAME", 'father_name'])),
+    "MOTHER'S NAME":           normalizeCellValue(getRowField(row, ['mother_name', "MOTHER'S NAME"])),
+    'PARMANENT ADDRESS':       normalizeCellValue(getRowField(row, ['address', 'Address', 'PARMANENT ADDRESS'])),
+    DISTRICT:                  normalizeCellValue(getRowField(row, ['district', 'DISTRICT'])),
+    STATE:                     normalizeCellValue(getRowField(row, ['state', 'STATE'])),
+    PINCODE:                   normalizeCellValue(getRowField(row, ['pincode', 'PINCODE'])),
+    '10th SCHOOL NAME':        normalizeCellValue(getRowField(row, ['school_10', '10th SCHOOL NAME'])),
+    '10th BOARD':              normalizeCellValue(getRowField(row, ['board_10', '10th BOARD'])),
+    '10th Precentage':         normalizeCellValue(getRowField(row, ['percentage_10', '10th Precentage'])),
+    '12th SCHOOL NAME':        normalizeCellValue(getRowField(row, ['school_12', '12th SCHOOL NAME'])),
+    '12th BOARD':              normalizeCellValue(getRowField(row, ['board_12', '12th BOARD'])),
+    '12th Precentage':         normalizeCellValue(getRowField(row, ['percentage_12', '12th Precentage'])),
     'FUTURE COLLEGE (TARGET)': normalizeCellValue(getRowField(row, ['future_college', 'FUTURE COLLEGE (TARGET)'])),
     'WEAK SUBJECT (MANUAL)':   normalizeCellValue(getRowField(row, ['weak_subject_manual', 'WEAK SUBJECT (MANUAL)'])),
     'STUDENT PHOTO URL':       normalizeCellValue(getRowField(row, ['student_photo_url', 'STUDENT PHOTO URL'])),
@@ -100,47 +101,45 @@ function mapExcelMarkRow(row, testKey) {
   };
 }
 
-function usableMark(v) {
-  return v !== undefined && v !== null && v !== '' && String(v).toLowerCase() !== 'absent';
-}
-
+/**
+ * Build flat marks rows from profiles + tests for the marks table.
+ * Dynamically handles JEE (Phy/Che/Mat) and NEET (Phy/Che/Bio).
+ */
 function buildMarksRows(profiles, tests, testColumns) {
   const rows = [];
-  const cols = (testColumns || []).filter((c) => !parseTestColumn(c).isTotal);
-  if (!cols.length) return rows;
+  const subjectCols = (testColumns || []).filter((c) => !parseTestColumn(c).isTotal);
+  if (!subjectCols.length) return rows;
 
   profiles.forEach((profile) => {
-    const studentTest = tests.find((t) => t.ROLL_KEY === profile.ROLL_KEY);
-    if (!studentTest) return;
+    const testDoc = tests.find((t) => t.ROLL_KEY === profile.ROLL_KEY);
+    if (!testDoc) return;
 
-    const testNames = new Set(cols.map((c) => parseTestColumn(c).testName));
+    const stream    = profile.stream || testDoc.stream || 'JEE';
+    const testNames = new Set(subjectCols.map((c) => parseTestColumn(c).testName));
+
     testNames.forEach((testName) => {
-      let phy = '', che = '', mat = '';
+      const subjects = {};
+      let hasAnyScore = false;
 
-      cols.forEach((col) => {
+      subjectCols.forEach((col) => {
         const meta = parseTestColumn(col);
         if (meta.testName !== testName) return;
-        const raw = studentTest[col];
-        if (!usableMark(raw)) return;
+        const raw = testDoc[col];
+        if (raw === undefined || raw === null || raw === '' || String(raw).toLowerCase() === 'absent') return;
         const n = parseFloat(raw);
-        if (isNaN(n)) return;
-        const sub = (meta.subject || '').toLowerCase();
-        if (sub.includes('phys'))               phy = n;
-        else if (sub.includes('chem'))           che = n;
-        else if (sub.includes('math') || sub === 'mat') mat = n;
+        if (!isNaN(n)) { subjects[meta.subject] = n; hasAnyScore = true; }
       });
 
-      if (phy === '' && che === '' && mat === '') return;
+      if (!hasAnyScore) return;
 
-      const total = (phy === '' ? 0 : phy) + (che === '' ? 0 : che) + (mat === '' ? 0 : mat);
+      const total = Object.values(subjects).reduce((s, v) => s + v, 0);
       rows.push({
-        roll:   profile.ROLL_KEY,
-        name:   profile["STUDENT'S NAME"] || '',
-        centre: profile.centerCode || '',
-        test:   testName,
-        phy:    phy === '' ? '—' : phy,
-        che:    che === '' ? '—' : che,
-        mat:    mat === '' ? '—' : mat,
+        roll:     profile.ROLL_KEY,
+        name:     profile["STUDENT'S NAME"] || '',
+        centre:   profile.centerCode || '',
+        stream,
+        test:     testName,
+        subjects,
         total,
       });
     });
@@ -167,41 +166,41 @@ export default function AdminDashboard() {
   const { activePage, setActivePage } = useOutletContext();
   const showToast = useToast();
 
-  const [data,           setData]           = useState(null);
-  const [loading,        setLoading]        = useState(true);
-  const [error,          setError]          = useState('');
+  const [data,            setData]            = useState(null);
+  const [overview,        setOverview]        = useState(null);
+  const [topRanked,       setTopRanked]       = useState([]);
+  const [bottomRanked,    setBottomRanked]    = useState([]);
+  const [centreBoard,     setCentreBoard]     = useState([]);
+  const [loading,         setLoading]         = useState(true);
+  const [error,           setError]           = useState('');
 
-  // Student detail view
   const [viewingStudentId, setViewingStudentId] = useState(null);
   const [selectedTestKey,  setSelectedTestKey]  = useState('');
 
-  // Student list filters
   const [searchTerm,     setSearchTerm]     = useState('');
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [filterCenter,   setFilterCenter]   = useState('ALL');
+  const [filterStream,   setFilterStream]   = useState('ALL');
 
-  // Marks filters
   const [marksSearch,  setMarksSearch]  = useState('');
   const [marksTestF,   setMarksTestF]   = useState('');
   const [marksCentreF, setMarksCentreF] = useState('');
 
-  // Modals
-  const [modalMode,    setModalMode]    = useState(null); // 'add' | 'edit' | 'tests' | null
+  const [modalMode,    setModalMode]    = useState(null);
   const [modalStudent, setModalStudent] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
 
-  // Import / export
-  const [importMode,     setImportMode]     = useState(null); // 'students' | 'marks' | null
-  const [uploadPreview,  setUploadPreview]  = useState([]);
-  const [uploadError,    setUploadError]    = useState('');
-  const [uploadLoading,  setUploadLoading]  = useState(false);
-  const [uploadTestKey,  setUploadTestKey]  = useState('');
+  const [importMode,    setImportMode]    = useState(null);
+  const [uploadPreview, setUploadPreview] = useState([]);
+  const [uploadError,   setUploadError]   = useState('');
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadTestKey, setUploadTestKey] = useState('');
   const fileRef = useRef(null);
 
-  // ── Bootstrap data ──────────────────────────────────────────────────────────
+  // ── Bootstrap ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    fetchGlobalData(null)
+    fetchGlobalData()
       .then((d) => {
         setData(d);
         const rankingCols = (d.testColumns || []).filter((c) => !String(c).includes('_'));
@@ -210,48 +209,56 @@ export default function AdminDashboard() {
       })
       .catch((err) => setError('Failed to load dashboard data: ' + err.message))
       .finally(() => setLoading(false));
+
+    fetchOverview(null).then(setOverview).catch(() => null);
   }, []);
 
-  // ── Derived data ────────────────────────────────────────────────────────────
+  // ── Reload backend analytics when test key changes ─────────────────────────
+
+  useEffect(() => {
+    if (!selectedTestKey) return;
+    Promise.all([
+      fetchRankings(null, { testKey: selectedTestKey, limit: 30, order: 'desc' }).catch(() => ({ ranked: [] })),
+      fetchRankings(null, { testKey: selectedTestKey, limit: 30, order: 'asc'  }).catch(() => ({ ranked: [] })),
+      fetchCentreLeaderboard(null, selectedTestKey).catch(() => []),
+    ]).then(([top, bottom, board]) => {
+      setTopRanked(top.ranked    || []);
+      setBottomRanked(bottom.ranked || []);
+      setCentreBoard(Array.isArray(board) ? board : []);
+    });
+  }, [selectedTestKey]);
+
+  // ── Derived data ───────────────────────────────────────────────────────────
 
   const rankingTestColumns = useMemo(
     () => (data?.testColumns || []).filter((c) => !String(c).includes('_')),
     [data]
   );
 
-  const analytics = useMemo(
-    () => data ? calculateAnalytics(data.profiles) : { totalStudents: 0 },
-    [data]
-  );
-
-  const rankings = useMemo(() => {
-    if (!data || !selectedTestKey) return { top10: [], bottom10: [], rankedScores: [] };
-    const r = getRankingsByTest(data.profiles, data.tests, selectedTestKey);
-    return { ...r, top10: r.rankedScores.slice(0, 30), bottom10: [...r.rankedScores].reverse().slice(0, 30) };
-  }, [data, selectedTestKey]);
-
   const filteredStudents = useMemo(() => {
     if (!data) return [];
     const q = searchTerm.toLowerCase();
     return data.profiles.filter((p) => {
-      const matchSearch  = !q
-        || (p["STUDENT'S NAME"] || '').toLowerCase().includes(q)
-        || (p.ROLL_KEY || '').toLowerCase().includes(q);
-      const matchCat    = filterCategory === 'ALL' || p.CATEGORY  === filterCategory;
-      const matchCenter = filterCenter   === 'ALL' || p.centerCode === filterCenter;
-      return matchSearch && matchCat && matchCenter;
+      const matchSearch  = !q || (p["STUDENT'S NAME"] || '').toLowerCase().includes(q) || (p.ROLL_KEY || '').toLowerCase().includes(q);
+      const matchCat     = filterCategory === 'ALL' || p.CATEGORY   === filterCategory;
+      const matchCenter  = filterCenter   === 'ALL' || p.centerCode === filterCenter;
+      const matchStream  = filterStream   === 'ALL' || (p.stream || 'JEE') === filterStream;
+      return matchSearch && matchCat && matchCenter && matchStream;
     });
-  }, [data, searchTerm, filterCategory, filterCenter]);
+  }, [data, searchTerm, filterCategory, filterCenter, filterStream]);
 
-  const categories = useMemo(
-    () => ['ALL', ...[...new Set((data?.profiles || []).map((p) => p.CATEGORY).filter(Boolean))]],
-    [data]
-  );
+  const categories  = useMemo(() => ['ALL', ...[...new Set((data?.profiles || []).map((p) => p.CATEGORY).filter(Boolean))]], [data]);
+  const centersList = useMemo(() => ['ALL', ...[...new Set((data?.profiles || []).map((p) => p.centerCode).filter(Boolean))]], [data]);
 
-  const centersList = useMemo(
-    () => ['ALL', ...[...new Set((data?.profiles || []).map((p) => p.centerCode).filter(Boolean))]],
-    [data]
-  );
+  // All unique subjects across test columns (for dynamic marks table header)
+  const allSubjects = useMemo(() => {
+    const seen = new Set();
+    (data?.testColumns || []).forEach((col) => {
+      const { subject, isTotal } = parseTestColumn(col);
+      if (!isTotal && subject !== 'Total') seen.add(subject);
+    });
+    return Array.from(seen);
+  }, [data]);
 
   const flatMarks = useMemo(
     () => buildMarksRows(data?.profiles || [], data?.tests || [], data?.testColumns || []),
@@ -268,10 +275,7 @@ export default function AdminDashboard() {
     });
   }, [flatMarks, marksSearch, marksTestF, marksCentreF]);
 
-  const uniqueMarkTests = useMemo(
-    () => [...new Set(flatMarks.map((m) => m.test))].sort(),
-    [flatMarks]
-  );
+  const uniqueMarkTests = useMemo(() => [...new Set(flatMarks.map((m) => m.test))].sort(), [flatMarks]);
 
   const profileByRoll = useMemo(() => {
     const map = new Map();
@@ -279,12 +283,7 @@ export default function AdminDashboard() {
     return map;
   }, [data]);
 
-  const globalWeak = useMemo(() => {
-    if (!data?.tests?.length || !data?.testColumns?.length) return 'N/A';
-    return getCentreWeakSubjectAnalysis(data.tests, data.testColumns)[0]?.subject || 'N/A';
-  }, [data]);
-
-  // ── CRUD handlers ────────────────────────────────────────────────────────────
+  // ── CRUD handlers ──────────────────────────────────────────────────────────
 
   const handleAddStudent = async (form) => {
     setModalLoading(true);
@@ -321,7 +320,7 @@ export default function AdminDashboard() {
       setData((d) => ({
         ...d,
         profiles: d.profiles.filter((p) => p.ROLL_KEY !== rollKey),
-        tests:    d.tests.filter((t) => t.ROLL_KEY !== rollKey),
+        tests:    d.tests.filter((t)    => t.ROLL_KEY !== rollKey),
       }));
       showToast(`Student ${rollKey} deleted.`, 'success');
     } catch (e) {
@@ -335,9 +334,9 @@ export default function AdminDashboard() {
       const result = await upsertTestScoresApi(null, modalStudent.ROLL_KEY, scores);
       setData((d) => ({
         ...d,
-        tests: d.tests
-          .map((t) => t.ROLL_KEY === modalStudent.ROLL_KEY ? result.testRecord : t)
-          .concat(d.tests.find((t) => t.ROLL_KEY === modalStudent.ROLL_KEY) ? [] : [result.testRecord]),
+        tests: d.tests.find((t) => t.ROLL_KEY === modalStudent.ROLL_KEY)
+          ? d.tests.map((t) => t.ROLL_KEY === modalStudent.ROLL_KEY ? result.testRecord : t)
+          : [...d.tests, result.testRecord],
       }));
       setModalMode(null);
       showToast('Test scores saved.', 'success');
@@ -348,14 +347,14 @@ export default function AdminDashboard() {
     }
   };
 
-  // ── Export helpers ───────────────────────────────────────────────────────────
+  // ── Export helpers ─────────────────────────────────────────────────────────
 
   const downloadStudentTemplate = () => {
     const rows = [
       STUDENT_TEMPLATE_COLUMNS,
       ['GAIL001', 'Aarav Sharma', 'Male', 'General', '9876543210', '2006-03-15', 'Rajesh Sharma', '9876543200',
        'Civil Lines', 'Kanpur', 'UP', '208001', 'DPS', 'CBSE', 92.4, 'KV', 'CBSE', 89.1,
-       'IIT Kanpur', 'Chemistry', 'https://example.com/photo.jpg', 'GAIL'],
+       'IIT Kanpur', 'Chemistry', 'https://example.com/photo.jpg', 'GAIL', 'JEE'],
     ];
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = STUDENT_TEMPLATE_COLUMNS.map(() => ({ wch: 18 }));
@@ -365,32 +364,30 @@ export default function AdminDashboard() {
   };
 
   const exportStudentsXlsx = () => {
-    if (!data?.profiles?.length) {
-      showToast('No students to export.', 'warning');
-      return;
-    }
+    if (!data?.profiles?.length) { showToast('No students to export.', 'warning'); return; }
     const rows = data.profiles.map((s) => ({
-      roll_number:        s.ROLL_KEY || '',
-      name:               s["STUDENT'S NAME"] || '',
-      gender:             s.GENDER || '',
-      category:           s.CATEGORY || '',
-      mobile:             s['Mobile No.'] || '',
-      dob:                s['DATE OF BIRTH'] || '',
-      parent_name:        s["FATHER'S NAME"] || '',
-      address:            s['PARMANENT ADDRESS'] || '',
-      district:           s.DISTRICT || '',
-      state:              s.STATE || '',
-      pincode:            s.PINCODE || '',
-      school_10:          s['10th SCHOOL NAME'] || '',
-      board_10:           s['10th BOARD'] || '',
-      percentage_10:      s['10th Precentage'] || '',
-      school_12:          s['12th SCHOOL NAME'] || '',
-      board_12:           s['12th BOARD'] || '',
-      percentage_12:      s['12th Precentage'] || '',
-      future_college:     s['FUTURE COLLEGE (TARGET)'] || '',
+      roll_number:         s.ROLL_KEY || '',
+      name:                s["STUDENT'S NAME"] || '',
+      stream:              s.stream || 'JEE',
+      gender:              s.GENDER || '',
+      category:            s.CATEGORY || '',
+      mobile:              s['Mobile No.'] || '',
+      dob:                 s['DATE OF BIRTH'] || '',
+      parent_name:         s["FATHER'S NAME"] || '',
+      address:             s['PARMANENT ADDRESS'] || '',
+      district:            s.DISTRICT || '',
+      state:               s.STATE || '',
+      pincode:             s.PINCODE || '',
+      school_10:           s['10th SCHOOL NAME'] || '',
+      board_10:            s['10th BOARD'] || '',
+      percentage_10:       s['10th Precentage'] || '',
+      school_12:           s['12th SCHOOL NAME'] || '',
+      board_12:            s['12th BOARD'] || '',
+      percentage_12:       s['12th Precentage'] || '',
+      future_college:      s['FUTURE COLLEGE (TARGET)'] || '',
       weak_subject_manual: s['WEAK SUBJECT (MANUAL)'] || '',
-      student_photo_url:  s['STUDENT PHOTO URL'] || '',
-      centre:             s.centerCode || '',
+      student_photo_url:   s['STUDENT PHOTO URL'] || '',
+      centre:              s.centerCode || '',
     }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Students');
@@ -399,15 +396,13 @@ export default function AdminDashboard() {
   };
 
   const exportMarksXlsx = () => {
-    if (!selectedTestKey) {
-      showToast('Select a test column first.', 'warning');
-      return;
-    }
+    if (!selectedTestKey) { showToast('Select a test column first.', 'warning'); return; }
     const rows = (data?.profiles || []).map((p) => {
       const scoreDoc = data.tests.find((t) => t.ROLL_KEY === p.ROLL_KEY) || {};
       return {
         roll_number: p.ROLL_KEY,
         name:        p["STUDENT'S NAME"] || '',
+        stream:      p.stream || 'JEE',
         centre:      p.centerCode || '',
         test_key:    selectedTestKey,
         marks:       scoreDoc[selectedTestKey] ?? '',
@@ -424,6 +419,7 @@ export default function AdminDashboard() {
     const studentsRows = data.profiles.map((p) => ({
       roll_number:    p.ROLL_KEY,
       name:           p["STUDENT'S NAME"] || '',
+      stream:         p.stream || 'JEE',
       centre:         p.centerCode || '',
       category:       p.CATEGORY || '',
       jee_percentile: p['JEE MAIN PERCENTILE'] || '',
@@ -440,12 +436,10 @@ export default function AdminDashboard() {
     showToast('Full workbook exported.', 'success');
   };
 
-  // ── Import modal ─────────────────────────────────────────────────────────────
+  // ── Import modal ────────────────────────────────────────────────────────────
 
   const resetImportState = () => {
-    setUploadPreview([]);
-    setUploadError('');
-    setUploadLoading(false);
+    setUploadPreview([]); setUploadError(''); setUploadLoading(false);
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -455,10 +449,7 @@ export default function AdminDashboard() {
     resetImportState();
   };
 
-  const closeImportModal = () => {
-    setImportMode(null);
-    resetImportState();
-  };
+  const closeImportModal = () => { setImportMode(null); resetImportState(); };
 
   const handleImportFile = async (file) => {
     if (!file) return;
@@ -466,59 +457,34 @@ export default function AdminDashboard() {
       setUploadError('Please upload an .xlsx, .xls, or .csv file.');
       return;
     }
-    setUploadLoading(true);
-    setUploadError('');
+    setUploadLoading(true); setUploadError('');
     try {
       const buffer = await file.arrayBuffer();
       const wb     = XLSX.read(buffer, { type: 'array' });
       const ws     = wb.Sheets[wb.SheetNames[0]];
       const rows   = XLSX.utils.sheet_to_json(ws, { defval: '' });
-
-      if (!rows.length) {
-        setUploadError('The file contains no data rows.');
-        setUploadPreview([]);
-        return;
-      }
+      if (!rows.length) { setUploadError('The file contains no data rows.'); setUploadPreview([]); return; }
 
       if (importMode === 'students') {
         const existingRolls = new Set((data?.profiles || []).map((p) => p.ROLL_KEY?.toUpperCase()));
         setUploadPreview(rows.map((row, idx) => {
           const mapped = mapExcelStudentToProfile(row);
-          if (!mapped.ROLL_KEY)              return { row: idx + 2, status: 'err', reason: 'Missing roll_number' };
-          if (!mapped["STUDENT'S NAME"])     return { row: idx + 2, status: 'err', reason: 'Missing name',   roll: mapped.ROLL_KEY };
-          if (!mapped.centerCode)            return { row: idx + 2, status: 'err', reason: 'Missing centre', roll: mapped.ROLL_KEY, name: mapped["STUDENT'S NAME"] };
+          if (!mapped.ROLL_KEY)             return { row: idx + 2, status: 'err', reason: 'Missing roll_number' };
+          if (!mapped["STUDENT'S NAME"])    return { row: idx + 2, status: 'err', reason: 'Missing name',   roll: mapped.ROLL_KEY };
+          if (!mapped.centerCode)           return { row: idx + 2, status: 'err', reason: 'Missing centre', roll: mapped.ROLL_KEY };
           const exists = existingRolls.has(mapped.ROLL_KEY);
-          return {
-            row: idx + 2,
-            status:  exists ? 'update' : 'new',
-            reason:  exists ? 'Will update' : 'Will insert',
-            roll:    mapped.ROLL_KEY,
-            name:    mapped["STUDENT'S NAME"],
-            centre:  mapped.centerCode,
-            payload: mapped,
-          };
+          return { row: idx + 2, status: exists ? 'update' : 'new', reason: exists ? 'Will update' : 'Will insert', roll: mapped.ROLL_KEY, name: mapped["STUDENT'S NAME"], centre: mapped.centerCode, payload: mapped };
         }));
       } else {
         const existingRolls = new Set((data?.profiles || []).map((p) => p.ROLL_KEY?.toUpperCase()));
-        const existingMarks = new Set(
-          (data?.tests || [])
-            .filter((t) => t[uploadTestKey] !== undefined)
-            .map((t) => t.ROLL_KEY?.toUpperCase())
-        );
+        const existingMarks = new Set((data?.tests || []).filter((t) => t[uploadTestKey] !== undefined).map((t) => t.ROLL_KEY?.toUpperCase()));
         setUploadPreview(rows.map((row, idx) => {
           const mapped = mapExcelMarkRow(row, uploadTestKey);
-          if (!mapped.roll)                      return { row: idx + 2, status: 'err', reason: 'Missing roll_number' };
-          if (!existingRolls.has(mapped.roll))   return { row: idx + 2, status: 'err', reason: 'Roll not found',    roll: mapped.roll };
-          if (mapped.value === '')               return { row: idx + 2, status: 'err', reason: 'Missing marks',     roll: mapped.roll };
+          if (!mapped.roll)                    return { row: idx + 2, status: 'err', reason: 'Missing roll_number' };
+          if (!existingRolls.has(mapped.roll)) return { row: idx + 2, status: 'err', reason: 'Roll not found',    roll: mapped.roll };
+          if (mapped.value === '')             return { row: idx + 2, status: 'err', reason: 'Missing marks',     roll: mapped.roll };
           const exists = existingMarks.has(mapped.roll);
-          return {
-            row: idx + 2,
-            status:  exists ? 'update' : 'new',
-            reason:  exists ? 'Will update score' : 'Will create score',
-            roll:    mapped.roll,
-            marks:   mapped.value,
-            payload: mapped,
-          };
+          return { row: idx + 2, status: exists ? 'update' : 'new', reason: exists ? 'Will update score' : 'Will create score', roll: mapped.roll, marks: mapped.value, payload: mapped };
         }));
       }
     } catch (e) {
@@ -531,21 +497,17 @@ export default function AdminDashboard() {
 
   const confirmImport = async () => {
     const valid = uploadPreview.filter((p) => p.status === 'new' || p.status === 'update');
-    if (!valid.length) {
-      showToast('No valid rows to import.', 'warning');
-      return;
-    }
+    if (!valid.length) { showToast('No valid rows to import.', 'warning'); return; }
     setUploadLoading(true);
     try {
       let newCount = 0, updateCount = 0;
-
       if (importMode === 'students') {
         for (const row of valid) {
           const exists = data.profiles.find((p) => p.ROLL_KEY === row.payload.ROLL_KEY);
           if (exists) { await updateStudentApi(null, row.payload.ROLL_KEY, row.payload); updateCount++; }
-          else        { await addStudentApi(null, row.payload);                           newCount++;   }
+          else        { await addStudentApi(null, row.payload); newCount++; }
         }
-        setData(await fetchGlobalData(null));
+        setData(await fetchGlobalData());
         showToast(`Students imported: ${newCount} new, ${updateCount} updated.`, 'success');
       } else {
         for (const row of valid) {
@@ -555,7 +517,7 @@ export default function AdminDashboard() {
           if (prev === undefined || prev === null || prev === '') newCount++;
           else updateCount++;
         }
-        setData(await fetchGlobalData(null));
+        setData(await fetchGlobalData());
         showToast(`Marks imported: ${newCount} new, ${updateCount} updated.`, 'success');
       }
       closeImportModal();
@@ -566,7 +528,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ── Render states ─────────────────────────────────────────────────────────────
+  // ── Render states ──────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -580,8 +542,7 @@ export default function AdminDashboard() {
   if (error) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--red)', padding: 32, justifyContent: 'center' }}>
-        <AlertTriangle size={20} />
-        {error}
+        <AlertTriangle size={20} />{error}
       </div>
     );
   }
@@ -592,12 +553,7 @@ export default function AdminDashboard() {
     return (
       <div className="fade-in">
         <div className="page-header">
-          <button
-            type="button"
-            onClick={() => setViewingStudentId(null)}
-            className="btn btn-sm"
-            style={{ background: 'rgba(255,255,255,.15)', color: '#fff', border: 'none', marginRight: 8, gap: 5 }}
-          >
+          <button type="button" onClick={() => setViewingStudentId(null)} className="btn btn-sm" style={{ background: 'rgba(255,255,255,.15)', color: '#fff', border: 'none', marginRight: 8, gap: 5 }}>
             <ArrowLeft size={14} /> Back
           </button>
           <div>
@@ -612,15 +568,21 @@ export default function AdminDashboard() {
     );
   }
 
-  // ── Section components ────────────────────────────────────────────────────────
+  // ── Section components ─────────────────────────────────────────────────────
 
   const OverviewSection = () => {
+    const totalStudents  = overview?.totalStudents ?? data.profiles.length;
+    const weakSubject    = overview?.weakSubject   ?? 'N/A';
+    const jeeCount       = data.profiles.filter((p) => (p.stream || 'JEE') === 'JEE').length;
+    const neetCount      = data.profiles.filter((p) => p.stream === 'NEET').length;
+
     const statCards = [
-      { Icon: Users,          value: analytics.totalStudents,             label: 'Total Students',    bg: '#e8f0fc', color: '#1a4fa0' },
-      { Icon: Building2,      value: Math.max(0, centersList.length - 1), label: 'Active Centres',    bg: '#fff3e0', color: '#b45309' },
-      { Icon: FileText,       value: data?.tests?.length || 0,            label: 'Marks Entries',     bg: '#e6f5ed', color: '#1a6e3b' },
-      { Icon: AlertTriangle,  value: globalWeak,                          label: 'Global Weak Subject', bg: '#fdecea', color: '#c0392b' },
+      { Icon: Users,         value: totalStudents,                      label: 'Total Students',     bg: '#e8f0fc', color: '#1a4fa0' },
+      { Icon: Building2,     value: Math.max(0, centersList.length - 1), label: 'Active Centres',    bg: '#fff3e0', color: '#b45309' },
+      { Icon: FileText,      value: data?.tests?.length || 0,           label: 'Marks Entries',      bg: '#e6f5ed', color: '#1a6e3b' },
+      { Icon: AlertTriangle, value: weakSubject,                        label: 'Global Weak Subject', bg: '#fdecea', color: '#c0392b' },
     ];
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div className="grid-4">
@@ -639,21 +601,17 @@ export default function AdminDashboard() {
             );
           })}
         </div>
+
         <div className="grid-2">
           <div className="card">
             <div className="section-title">
               <Trophy size={15} style={{ marginRight: 6 }} aria-hidden="true" />
               Top Centres — {selectedTestKey}
             </div>
-            <CentreLeaderboard
-              profiles={data.profiles}
-              tests={data.tests}
-              testColumns={data.testColumns}
-              selTest={selectedTestKey}
-            />
+            <CentreLeaderboard centreStats={centreBoard} selTest={selectedTestKey} />
           </div>
           <div className="card">
-            <div className="section-title">Category Distribution</div>
+            <div className="section-title">Category & Stream Distribution</div>
             {['General', 'OBC', 'SC', 'ST'].map((cat) => {
               const count = data.profiles.filter((s) => s.CATEGORY === cat).length;
               if (!count) return null;
@@ -662,13 +620,23 @@ export default function AdminDashboard() {
                   <span className={`badge badge-${cat.toLowerCase()}`} style={{ minWidth: 68, textAlign: 'center' }}>{cat}</span>
                   <div style={{ flex: 1 }}>
                     <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: `${pctBar(count, analytics.totalStudents || 1)}%`, background: '#1a4fa0' }} />
+                      <div className="progress-fill" style={{ width: `${pctBar(count, totalStudents || 1)}%`, background: '#1a4fa0' }} />
                     </div>
                   </div>
                   <span style={{ fontSize: 14, fontWeight: 600, minWidth: 22, textAlign: 'right' }}>{count}</span>
                 </div>
               );
             })}
+            <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--gray-100)', display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1, background: '#e8f0fc', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#1a4fa0' }}>{jeeCount}</div>
+                <div style={{ fontSize: 12, color: 'var(--gray-600)' }}>JEE</div>
+              </div>
+              <div style={{ flex: 1, background: '#e6f5ed', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#1a6e3b' }}>{neetCount}</div>
+                <div style={{ fontSize: 12, color: 'var(--gray-600)' }}>NEET</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -680,12 +648,9 @@ export default function AdminDashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 18, fontWeight: 800, color: 'var(--gray-800)' }}>
-            <Trophy size={18} aria-hidden="true" />
-            Centre Rankings — {selectedTestKey}
+            <Trophy size={18} aria-hidden="true" />Centre Rankings — {selectedTestKey}
           </div>
-          <div style={{ fontSize: 13, color: 'var(--gray-400)', marginTop: 2 }}>
-            Sorted descending by average score for the selected test column
-          </div>
+          <div style={{ fontSize: 13, color: 'var(--gray-400)', marginTop: 2 }}>Sorted descending by average score</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ fontSize: 13, color: 'var(--gray-600)' }}>Test:</span>
@@ -694,12 +659,7 @@ export default function AdminDashboard() {
           </select>
         </div>
       </div>
-      <CentreLeaderboard
-        profiles={data.profiles}
-        tests={data.tests}
-        testColumns={data.testColumns}
-        selTest={selectedTestKey}
-      />
+      <CentreLeaderboard centreStats={centreBoard} selTest={selectedTestKey} />
     </div>
   );
 
@@ -707,8 +667,7 @@ export default function AdminDashboard() {
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
         <div className="section-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Users size={15} aria-hidden="true" />
-          Students ({filteredStudents.length})
+          <Users size={15} aria-hidden="true" />Students ({filteredStudents.length})
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" className="btn btn-purple btn-sm" onClick={() => openImportModal('students')}>
@@ -722,13 +681,7 @@ export default function AdminDashboard() {
       <div className="search-row">
         <div style={{ position: 'relative' }}>
           <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)', pointerEvents: 'none' }} />
-          <input
-            className="input"
-            placeholder="Name or roll…"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ maxWidth: 240, paddingLeft: 30 }}
-          />
+          <input className="input" placeholder="Name or roll…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: 240, paddingLeft: 30 }} />
         </div>
         <select className="input select" value={filterCenter}   onChange={(e) => setFilterCenter(e.target.value)}   style={{ maxWidth: 200 }}>
           <option value="ALL">All Centres</option>
@@ -737,14 +690,16 @@ export default function AdminDashboard() {
         <select className="input select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} style={{ maxWidth: 150 }}>
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
+        <select className="input select" value={filterStream}   onChange={(e) => setFilterStream(e.target.value)}   style={{ maxWidth: 120 }}>
+          <option value="ALL">All Streams</option>
+          <option value="JEE">JEE</option>
+          <option value="NEET">NEET</option>
+        </select>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table className="table">
           <thead>
-            <tr>
-              <th>Roll</th><th>Name</th><th>Centre</th><th>Category</th>
-              <th>Mobile</th><th>Class 10</th><th>JEE %ile</th><th>Actions</th>
-            </tr>
+            <tr><th>Roll</th><th>Name</th><th>Centre</th><th>Stream</th><th>Category</th><th>Mobile</th><th>Class 10</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {filteredStudents.map((s) => (
@@ -760,10 +715,14 @@ export default function AdminDashboard() {
                   </div>
                 </td>
                 <td><span className="badge" style={{ background: '#e8f0fc', color: '#1a4fa0' }}>{s.centerCode}</span></td>
+                <td>
+                  <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 3, background: s.stream === 'NEET' ? '#e6f5ed' : '#e8f0fc', color: s.stream === 'NEET' ? '#1a6e3b' : '#1a4fa0', fontWeight: 700 }}>
+                    {s.stream || 'JEE'}
+                  </span>
+                </td>
                 <td><span className={`badge badge-${(s.CATEGORY || 'general').toLowerCase()}`}>{s.CATEGORY || 'General'}</span></td>
                 <td style={{ fontSize: 13, color: 'var(--gray-600)' }}>{s['Mobile No.'] || '—'}</td>
                 <td>{s['10th Precentage'] ? `${s['10th Precentage']}%` : '—'}</td>
-                <td>{getJeePercentile(s) ?? '—'}</td>
                 <td>
                   <div className="action-btns">
                     <button type="button" className="btn btn-primary btn-sm" aria-label="View student profile" onClick={() => setViewingStudentId(s.ROLL_KEY)}>
@@ -795,8 +754,7 @@ export default function AdminDashboard() {
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
         <div className="section-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <FileText size={15} aria-hidden="true" />
-          Test Marks ({filteredFlatMarks.length})
+          <FileText size={15} aria-hidden="true" />Test Marks ({filteredFlatMarks.length})
         </div>
         <button type="button" className="btn btn-teal btn-sm" onClick={() => openImportModal('marks')}>
           <Upload size={13} /> Bulk Upload
@@ -805,13 +763,7 @@ export default function AdminDashboard() {
       <div className="search-row">
         <div style={{ position: 'relative' }}>
           <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)', pointerEvents: 'none' }} />
-          <input
-            className="input"
-            placeholder="Roll or name…"
-            value={marksSearch}
-            onChange={(e) => setMarksSearch(e.target.value)}
-            style={{ maxWidth: 220, paddingLeft: 30 }}
-          />
+          <input className="input" placeholder="Roll or name…" value={marksSearch} onChange={(e) => setMarksSearch(e.target.value)} style={{ maxWidth: 220, paddingLeft: 30 }} />
         </div>
         <select className="input select" value={marksTestF}   onChange={(e) => setMarksTestF(e.target.value)}   style={{ maxWidth: 220 }}>
           <option value="">All Tests</option>
@@ -825,25 +777,39 @@ export default function AdminDashboard() {
       <div style={{ overflowX: 'auto' }}>
         <table className="table">
           <thead>
-            <tr><th>Roll</th><th>Name</th><th>Centre</th><th>Test</th><th>Phy</th><th>Che</th><th>Mat</th><th>Total</th><th>%</th></tr>
+            <tr>
+              <th>Roll</th><th>Name</th><th>Centre</th><th>Stream</th><th>Test</th>
+              {allSubjects.map((s) => <th key={s}>{s}</th>)}
+              <th>Total</th><th>%</th>
+            </tr>
           </thead>
           <tbody>
             {filteredFlatMarks.map((m) => {
-              const pct = m.total ? Math.round((m.total / 180) * 100) : 0;
+              const maxTotal = m.stream === 'NEET' ? 180 : 180; // both 180 for coaching tests
+              const pct      = m.total ? Math.round((m.total / maxTotal) * 100) : 0;
               return (
                 <tr key={`${m.roll}-${m.test}`}>
                   <td><strong style={{ color: '#1a4fa0' }}>{m.roll}</strong></td>
                   <td style={{ fontWeight: 500, fontSize: 13 }}>{m.name || '—'}</td>
                   <td><span className="badge" style={{ background: '#e8f0fc', color: '#1a4fa0', fontSize: 11 }}>{m.centre || '—'}</span></td>
+                  <td>
+                    <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 3, background: m.stream === 'NEET' ? '#e6f5ed' : '#e8f0fc', color: m.stream === 'NEET' ? '#1a6e3b' : '#1a4fa0', fontWeight: 700 }}>
+                      {m.stream}
+                    </span>
+                  </td>
                   <td><strong style={{ color: 'var(--csrl-orange)' }}>{m.test}</strong></td>
-                  <td>{m.phy}</td><td>{m.che}</td><td>{m.mat}</td>
+                  {allSubjects.map((sub) => (
+                    <td key={sub} style={{ color: m.subjects[sub] === undefined ? 'var(--gray-200)' : 'inherit' }}>
+                      {m.subjects[sub] ?? '—'}
+                    </td>
+                  ))}
                   <td><strong style={{ color: '#1a4fa0' }}>{m.total}</strong></td>
                   <td><span className={`chip ${pct >= 60 ? 'chip-good' : 'chip-weak'}`}>{pct}%</span></td>
                 </tr>
               );
             })}
             {!filteredFlatMarks.length && (
-              <tr><td colSpan={9} style={{ textAlign: 'center', padding: 24, color: 'var(--gray-400)' }}>No marks found.</td></tr>
+              <tr><td colSpan={allSubjects.length + 7} style={{ textAlign: 'center', padding: 24, color: 'var(--gray-400)' }}>No marks found.</td></tr>
             )}
           </tbody>
         </table>
@@ -854,16 +820,13 @@ export default function AdminDashboard() {
   const Top30Section = () => (
     <div className="card">
       <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <TrendingUp size={15} aria-hidden="true" />
-        Top 30 — {selectedTestKey}
+        <TrendingUp size={15} aria-hidden="true" />Top 30 — {selectedTestKey}
       </div>
       <table className="table">
-        <thead>
-          <tr><th>#</th><th>Student</th><th>Centre</th><th>Cat</th><th>Score</th></tr>
-        </thead>
+        <thead><tr><th>#</th><th>Student</th><th>Centre</th><th>Stream</th><th>Cat</th><th>Score</th></tr></thead>
         <tbody>
-          {rankings.top10.map((m) => {
-            const profile = profileByRoll.get(m.roll);
+          {topRanked.map((m) => {
+            const profile   = profileByRoll.get(m.roll);
             const rankColor = m.rank === 1 ? '#d97706' : m.rank === 2 ? '#6b7280' : m.rank === 3 ? '#c2410c' : 'inherit';
             return (
               <tr key={m.roll} style={{ cursor: 'pointer' }} onClick={() => setViewingStudentId(m.roll)}>
@@ -878,13 +841,18 @@ export default function AdminDashboard() {
                   </div>
                 </td>
                 <td><span className="badge" style={{ background: '#e8f0fc', color: '#1a4fa0' }}>{m.center}</span></td>
+                <td>
+                  <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 3, background: m.stream === 'NEET' ? '#e6f5ed' : '#e8f0fc', color: m.stream === 'NEET' ? '#1a6e3b' : '#1a4fa0', fontWeight: 700 }}>
+                    {m.stream || 'JEE'}
+                  </span>
+                </td>
                 <td><span className={`badge badge-${(profile?.CATEGORY || 'general').toLowerCase()}`}>{profile?.CATEGORY || '—'}</span></td>
                 <td><strong style={{ fontSize: 15, color: '#1a4fa0' }}>{m.marks}</strong></td>
               </tr>
             );
           })}
-          {!rankings.top10.length && (
-            <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--gray-400)' }}>No data for {selectedTestKey}.</td></tr>
+          {!topRanked.length && (
+            <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24, color: 'var(--gray-400)' }}>No data for {selectedTestKey}.</td></tr>
           )}
         </tbody>
       </table>
@@ -894,15 +862,12 @@ export default function AdminDashboard() {
   const Bottom30Section = () => (
     <div className="card">
       <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <TrendingDown size={15} aria-hidden="true" />
-        Bottom 30 — {selectedTestKey}
+        <TrendingDown size={15} aria-hidden="true" />Bottom 30 — {selectedTestKey}
       </div>
       <table className="table">
-        <thead>
-          <tr><th>Rank</th><th>Student</th><th>Centre</th><th>Score</th></tr>
-        </thead>
+        <thead><tr><th>Rank</th><th>Student</th><th>Centre</th><th>Score</th></tr></thead>
         <tbody>
-          {rankings.bottom10.map((m) => (
+          {bottomRanked.map((m) => (
             <tr key={m.roll} style={{ cursor: 'pointer' }} onClick={() => setViewingStudentId(m.roll)}>
               <td style={{ color: 'var(--red)', fontWeight: 700 }}>#{m.rank}</td>
               <td>
@@ -918,7 +883,7 @@ export default function AdminDashboard() {
               <td><strong style={{ color: 'var(--red)' }}>{m.marks}</strong></td>
             </tr>
           ))}
-          {!rankings.bottom10.length && (
+          {!bottomRanked.length && (
             <tr><td colSpan={4} style={{ textAlign: 'center', padding: 24, color: 'var(--gray-400)' }}>No data for {selectedTestKey}.</td></tr>
           )}
         </tbody>
@@ -928,7 +893,6 @@ export default function AdminDashboard() {
 
   const ImportExportSection = () => (
     <div className="grid-2">
-      {/* Students card */}
       <div className="card" style={{ border: '2px solid #6d28d9' }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 14 }}>
           <div style={{ padding: 10, borderRadius: 10, background: '#ede9fe', flexShrink: 0 }}>
@@ -936,9 +900,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 16 }}>Import Student Profiles</div>
-            <div style={{ fontSize: 13, color: 'var(--gray-600)', marginTop: 4 }}>
-              Bulk-add or update student profiles from an Excel sheet.
-            </div>
+            <div style={{ fontSize: 13, color: 'var(--gray-600)', marginTop: 4 }}>Bulk-add or update student profiles from Excel. Supports JEE and NEET streams.</div>
           </div>
         </div>
         <div style={{ background: 'var(--gray-50)', borderRadius: 8, padding: '12px 14px', marginBottom: 14, fontSize: 13 }}>
@@ -949,19 +911,12 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button type="button" className="btn btn-outline btn-sm" onClick={downloadStudentTemplate}>
-            <Download size={13} /> Download Template
-          </button>
-          <button type="button" className="btn btn-purple" onClick={() => openImportModal('students')}>
-            <Upload size={13} /> Upload Excel
-          </button>
-          <button type="button" className="btn btn-success btn-sm" onClick={exportStudentsXlsx}>
-            <Download size={13} /> Export
-          </button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={downloadStudentTemplate}><Download size={13} /> Download Template</button>
+          <button type="button" className="btn btn-purple" onClick={() => openImportModal('students')}><Upload size={13} /> Upload Excel</button>
+          <button type="button" className="btn btn-success btn-sm" onClick={exportStudentsXlsx}><Download size={13} /> Export</button>
         </div>
       </div>
 
-      {/* Marks card */}
       <div className="card" style={{ border: '2px solid #0f766e' }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 14 }}>
           <div style={{ padding: 10, borderRadius: 10, background: '#ccfbf1', flexShrink: 0 }}>
@@ -969,9 +924,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 16 }}>Import Test Marks</div>
-            <div style={{ fontSize: 13, color: 'var(--gray-600)', marginTop: 4 }}>
-              Upload test-wise marks — select test column, upload file, preview and confirm.
-            </div>
+            <div style={{ fontSize: 13, color: 'var(--gray-600)', marginTop: 4 }}>Upload test-wise marks — select test column, upload, preview and confirm.</div>
           </div>
         </div>
         <div style={{ background: 'var(--gray-50)', borderRadius: 8, padding: '12px 14px', marginBottom: 14, fontSize: 13 }}>
@@ -980,26 +933,17 @@ export default function AdminDashboard() {
           <div style={{ marginTop: 4, fontSize: 12, color: 'var(--gray-400)' }}>One column at a time (selected test).</div>
           <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {rankingTestColumns.slice(0, 8).map((t) => (
-              <button key={t} type="button" className="btn btn-ghost btn-sm" onClick={() => { setSelectedTestKey(t); setUploadTestKey(t); }}>
-                {t}
-              </button>
+              <button key={t} type="button" className="btn btn-ghost btn-sm" onClick={() => { setSelectedTestKey(t); setUploadTestKey(t); }}>{t}</button>
             ))}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button type="button" className="btn btn-teal" onClick={() => openImportModal('marks')}>
-            <Upload size={13} /> Upload Marks
-          </button>
-          <button type="button" className="btn btn-outline btn-sm" onClick={exportMarksXlsx}>
-            <Download size={13} /> Export selected test
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={exportCombinedWorkbook}>
-            <Package size={13} /> Full workbook
-          </button>
+          <button type="button" className="btn btn-teal" onClick={() => openImportModal('marks')}><Upload size={13} /> Upload Marks</button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={exportMarksXlsx}><Download size={13} /> Export selected test</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={exportCombinedWorkbook}><Package size={13} /> Full workbook</button>
         </div>
       </div>
 
-      {/* Tips */}
       <div className="card" style={{ gridColumn: '1 / -1', background: 'var(--yellow-bg)', border: '1px solid #fde68a' }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           <Lightbulb size={22} color="#92400e" aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
@@ -1008,6 +952,7 @@ export default function AdminDashboard() {
             <ul style={{ marginTop: 6, paddingLeft: 18, lineHeight: 1.9 }}>
               <li>Keep the first row as column headers.</li>
               <li>Roll numbers must match exactly for record updates.</li>
+              <li>Add a <code>stream</code> column with "JEE" or "NEET" for mixed batches.</li>
               <li>For marks: use one Excel file per test column.</li>
               <li>A preview will appear before any data is written.</li>
             </ul>
@@ -1017,19 +962,13 @@ export default function AdminDashboard() {
     </div>
   );
 
-  // ── Main render ────────────────────────────────────────────────────────────────
+  // ── Main render ────────────────────────────────────────────────────────────
 
   return (
     <div className="fade-in">
       {/* Modals */}
       {(modalMode === 'add' || modalMode === 'edit') && (
-        <StudentFormModal
-          mode={modalMode}
-          student={modalStudent}
-          loading={modalLoading}
-          onClose={() => setModalMode(null)}
-          onSubmit={modalMode === 'add' ? handleAddStudent : handleEditStudent}
-        />
+        <StudentFormModal mode={modalMode} student={modalStudent} loading={modalLoading} onClose={() => setModalMode(null)} onSubmit={modalMode === 'add' ? handleAddStudent : handleEditStudent} />
       )}
       {modalMode === 'tests' && (
         <TestDataModal
@@ -1061,43 +1000,21 @@ export default function AdminDashboard() {
                   </select>
                 </div>
               )}
-
               <div className="upload-zone" role="button" tabIndex={0} onClick={() => fileRef.current?.click()} onKeyDown={(e) => e.key === 'Enter' && fileRef.current?.click()}>
                 <Upload size={32} style={{ margin: '0 auto 10px', color: 'var(--gray-400)' }} aria-hidden="true" />
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Click to upload Excel / CSV</div>
                 <div style={{ fontSize: 13, color: 'var(--gray-400)' }}>
-                  {importMode === 'students'
-                    ? 'Use the template headers for best column mapping.'
-                    : 'File must contain roll_number and a marks/score column.'}
+                  {importMode === 'students' ? 'Use the template headers for best column mapping.' : 'File must contain roll_number and a marks/score column.'}
                 </div>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  style={{ display: 'none' }}
-                  onChange={(e) => handleImportFile(e.target.files?.[0])}
-                />
+                <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={(e) => handleImportFile(e.target.files?.[0])} />
               </div>
-
               {importMode === 'students' && (
                 <div style={{ marginTop: 10 }}>
-                  <button type="button" className="btn btn-outline btn-sm" onClick={downloadStudentTemplate}>
-                    <Download size={13} /> Download Student Template
-                  </button>
+                  <button type="button" className="btn btn-outline btn-sm" onClick={downloadStudentTemplate}><Download size={13} /> Download Student Template</button>
                 </div>
               )}
-
-              {uploadLoading && (
-                <div style={{ marginTop: 12, color: 'var(--csrl-blue)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Loader2 size={14} className="spin" /> Processing file…
-                </div>
-              )}
-              {uploadError && (
-                <div style={{ marginTop: 12, background: 'var(--red-bg)', color: 'var(--red)', borderRadius: 6, padding: '10px 12px', fontSize: 13 }}>
-                  {uploadError}
-                </div>
-              )}
-
+              {uploadLoading && <div style={{ marginTop: 12, color: 'var(--csrl-blue)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}><Loader2 size={14} className="spin" /> Processing file…</div>}
+              {uploadError  && <div style={{ marginTop: 12, background: 'var(--red-bg)', color: 'var(--red)', borderRadius: 6, padding: '10px 12px', fontSize: 13 }}>{uploadError}</div>}
               {!!uploadPreview.length && (
                 <div style={{ marginTop: 14 }}>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -1107,24 +1024,14 @@ export default function AdminDashboard() {
                   </div>
                   <div className="preview-wrap">
                     <table className="preview-table">
-                      <thead>
-                        <tr>
-                          <th>Row</th><th>Roll</th>
-                          <th>{importMode === 'students' ? 'Name' : 'Marks'}</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
+                      <thead><tr><th>Row</th><th>Roll</th><th>{importMode === 'students' ? 'Name' : 'Marks'}</th><th>Status</th></tr></thead>
                       <tbody>
                         {uploadPreview.map((row, idx) => (
                           <tr key={idx}>
                             <td>{row.row}</td>
                             <td>{row.roll || '—'}</td>
                             <td>{importMode === 'students' ? (row.name || '—') : (row.marks ?? '—')}</td>
-                            <td>
-                              <span className={row.status === 'new' ? 'pill-new' : row.status === 'update' ? 'pill-update' : 'pill-err'}>
-                                {row.reason}
-                              </span>
-                            </td>
+                            <td><span className={row.status === 'new' ? 'pill-new' : row.status === 'update' ? 'pill-update' : 'pill-err'}>{row.reason}</span></td>
                           </tr>
                         ))}
                       </tbody>
@@ -1135,13 +1042,7 @@ export default function AdminDashboard() {
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-ghost" onClick={closeImportModal}>Cancel</button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={uploadLoading || !uploadPreview.length}
-                onClick={confirmImport}
-                style={{ gap: 6 }}
-              >
+              <button type="button" className="btn btn-primary" disabled={uploadLoading || !uploadPreview.length} onClick={confirmImport} style={{ gap: 6 }}>
                 <CheckCircle2 size={14} /> Confirm Import
               </button>
             </div>
@@ -1156,18 +1057,14 @@ export default function AdminDashboard() {
         </div>
         <div>
           <h1>CSRL Admin Dashboard</h1>
-          <p>OIL India Super 30 · Full Control Panel</p>
+          <p>Super Admin · Full Control Panel</p>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <button type="button" className="btn btn-success btn-sm" onClick={() => { setModalStudent(null); setModalMode('add'); }}>
             <Plus size={13} /> Student
           </button>
-          <button type="button" className="btn btn-warning btn-sm" onClick={() => openImportModal('marks')}>
-            <Upload size={13} /> Marks
-          </button>
-          <button type="button" className="btn btn-purple btn-sm" onClick={() => openImportModal('students')}>
-            <Users size={13} /> Upload Students
-          </button>
+          <button type="button" className="btn btn-warning btn-sm" onClick={() => openImportModal('marks')}><Upload size={13} /> Marks</button>
+          <button type="button" className="btn btn-purple btn-sm" onClick={() => openImportModal('students')}><Users size={13} /> Upload Students</button>
           <select
             className="input select"
             value={selectedTestKey}
@@ -1186,20 +1083,13 @@ export default function AdminDashboard() {
             {TABS.map((tab) => {
               const TabIcon = tab.Icon;
               return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  className={`tab${activePage === tab.key ? ' active' : ''}`}
-                  onClick={() => setActivePage(tab.key)}
-                >
-                  <TabIcon size={13} aria-hidden="true" />
-                  {tab.label}
+                <button key={tab.key} type="button" className={`tab${activePage === tab.key ? ' active' : ''}`} onClick={() => setActivePage(tab.key)}>
+                  <TabIcon size={13} aria-hidden="true" />{tab.label}
                 </button>
               );
             })}
           </div>
         </div>
-
         {activePage === 'leaderboard' && <LeaderboardSection />}
         {activePage === 'overview'    && <OverviewSection />}
         {activePage === 'students'    && <StudentsSection />}

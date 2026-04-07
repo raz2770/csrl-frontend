@@ -2,16 +2,23 @@ import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { User, BarChart2, ClipboardList, AlertTriangle, Loader2 } from 'lucide-react';
-import { fetchStudentData, buildStudentChartData, computeWeakSubject } from '../services/dataService';
+import {
+  fetchStudentData,
+  fetchStudentChart,
+  buildStudentChartData,
+  computeWeakSubject,
+  getStreamConfig,
+  getExamResult,
+} from '../services/dataService';
 import { useAuth } from '../context/AuthContext';
 
 const TABS = [
   { key: 'profile',     Icon: User,          label: 'Profile'     },
-  { key: 'performance', Icon: BarChart2,     label: 'Performance' },
-  { key: 'marks',       Icon: ClipboardList, label: 'Records'     },
+  { key: 'performance', Icon: BarChart2,      label: 'Performance' },
+  { key: 'marks',       Icon: ClipboardList,  label: 'Records'     },
 ];
 
-const SUBJECT_COLORS = ['#1a4fa0', '#e86b1f', '#1a8a4a', '#f5a623', '#c0392b'];
+const SUBJECT_COLORS = ['#1a4fa0', '#e86b1f', '#1a8a4a', '#7c3aed', '#f5a623'];
 
 function getInitials(name = '') {
   return name.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -20,23 +27,45 @@ function getInitials(name = '') {
 export default function StudentDashboard() {
   const { activePage, setActivePage } = useOutletContext();
   const { user: auth } = useAuth();
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(true);
+
+  const [data,      setData]      = useState(null);
+  const [chart,     setChart]     = useState(null);  // { chartData, weakSubject }
+  const [loading,   setLoading]   = useState(true);
 
   useEffect(() => {
-    fetchStudentData(null, auth.id)
-      .then(setData)
-      .catch((e) => console.error('StudentDashboard:', e))
-      .finally(() => setLoading(false));
-  }, [auth.id]);
+    const load = async () => {
+      try {
+        const [studentData, chartResult] = await Promise.all([
+          fetchStudentData(null, auth.id),
+          fetchStudentChart(null, auth.id, auth.centerCode).catch(() => null),
+        ]);
+        setData(studentData);
+        setChart(chartResult);
+      } catch (e) {
+        console.error('StudentDashboard:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [auth.id, auth.centerCode]);
 
-  const profile     = data?.profiles?.[0];
-  const studentTests = data?.tests?.[0] || {};
-  const testColumns  = data?.testColumns || [];
+  const profile      = data?.profiles?.[0];
+  const studentTests = data?.tests?.[0]  || {};
+  const testColumns  = data?.testColumns  || [];
 
+  const stream    = profile?.stream || auth.stream || 'JEE';
+  const streamCfg = getStreamConfig(stream);
+
+  // Prefer backend chart; fallback to local computation
   const chartData = useMemo(
-    () => buildStudentChartData(studentTests, testColumns),
-    [studentTests, testColumns]
+    () => chart?.chartData ?? buildStudentChartData(studentTests, testColumns),
+    [chart, studentTests, testColumns]
+  );
+
+  const weakSubject = useMemo(
+    () => chart?.weakSubject ?? computeWeakSubject(studentTests, testColumns),
+    [chart, studentTests, testColumns]
   );
 
   const subjects = useMemo(
@@ -44,15 +73,12 @@ export default function StudentDashboard() {
     [chartData]
   );
 
-  const weakSubject = useMemo(
-    () => computeWeakSubject(studentTests, testColumns),
-    [studentTests, testColumns]
-  );
-
   const latestTotal = useMemo(() => {
     if (!chartData.length) return null;
     return chartData[chartData.length - 1]?.Total ?? null;
   }, [chartData]);
+
+  const examResult = getExamResult(profile);
 
   if (loading) {
     return (
@@ -71,6 +97,11 @@ export default function StudentDashboard() {
     );
   }
 
+  const subjectColor = (sub) => {
+    const map = { Physics: '#1a4fa0', Chemistry: '#e86b1f', Math: '#1a8a4a', Biology: '#7c3aed', Botany: '#059669', Zoology: '#0891b2' };
+    return map[sub] || '#374151';
+  };
+
   const ProfileTab = () => (
     <div className="grid-2">
       <div className="card">
@@ -78,6 +109,7 @@ export default function StudentDashboard() {
         {[
           ['Name',     profile["STUDENT'S NAME"]],
           ['Roll',     profile.ROLL_KEY],
+          ['Stream',   stream],
           ['Gender',   profile.GENDER],
           ['Category', profile.CATEGORY],
           ['DOB',      profile['DATE OF BIRTH']],
@@ -98,12 +130,13 @@ export default function StudentDashboard() {
           Weak Subject Analysis
         </div>
         <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--red)', marginBottom: 14 }}>{weakSubject}</div>
-        {['Physics', 'Chemistry', 'Math'].map((sub) => {
+        {streamCfg.subjects.map((sub) => {
           const avg = chartData.length
             ? Math.round(chartData.reduce((acc, m) => acc + (Number(m[sub]) || 0), 0) / chartData.length)
             : 0;
-          const isWeak = sub === weakSubject;
-          const fillColor = isWeak ? '#e74c3c' : sub === 'Physics' ? '#1a4fa0' : sub === 'Chemistry' ? '#e86b1f' : '#1a8a4a';
+          const isWeak    = sub === weakSubject;
+          const fillColor = isWeak ? '#e74c3c' : subjectColor(sub);
+          const maxMark   = streamCfg.maxPerSubject;
           return (
             <div key={sub} style={{ marginBottom: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
@@ -111,17 +144,28 @@ export default function StudentDashboard() {
                   {sub}
                   {isWeak && <AlertTriangle size={12} style={{ marginLeft: 5 }} aria-hidden="true" />}
                 </span>
-                <span style={{ fontWeight: 600 }}>{avg}/60</span>
+                <span style={{ fontWeight: 600 }}>{avg}/{maxMark}</span>
               </div>
               <div className="progress-bar">
                 <div
                   className="progress-fill"
-                  style={{ width: `${Math.min(100, Math.round((avg / 60) * 100))}%`, background: fillColor }}
+                  style={{ width: `${Math.min(100, Math.round((avg / maxMark) * 100))}%`, background: fillColor }}
                 />
               </div>
             </div>
           );
         })}
+
+        {examResult && (
+          <div style={{ marginTop: 16, padding: '10px 14px', background: stream === 'JEE' ? '#e8f0fc' : '#e6f5ed', borderRadius: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-600)', textTransform: 'uppercase', letterSpacing: 1 }}>
+              {stream === 'JEE' ? 'JEE Main Percentile' : 'NEET Score'}
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: stream === 'JEE' ? '#1a4fa0' : '#1a6e3b', marginTop: 2 }}>
+              {examResult}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -163,31 +207,38 @@ export default function StudentDashboard() {
         <table className="table">
           <thead>
             <tr>
-              <th>Test</th><th>Physics</th><th>Chemistry</th><th>Math</th><th>Total</th><th>%</th>
+              <th>Test</th>
+              {streamCfg.subjects.map((s) => <th key={s}>{s}</th>)}
+              <th>Total</th>
+              <th>%</th>
             </tr>
           </thead>
           <tbody>
             {chartData.map((row) => {
-              const phy   = row.Physics   ?? row.PHY ?? '—';
-              const che   = row.Chemistry ?? row.CHE ?? '—';
-              const mat   = row.Math      ?? row.MAT ?? '—';
-              const total = row.Total;
-              const pct   = total != null && !Number.isNaN(Number(total))
-                ? Math.round((Number(total) / 180) * 100)
+              const subScores = streamCfg.subjects.map((s) => {
+                const val = row[s];
+                return val !== null && val !== undefined ? val : '—';
+              });
+              const total  = row.Total;
+              const maxTot = streamCfg.maxTotal;
+              const pct    = total != null && !Number.isNaN(Number(total))
+                ? Math.round((Number(total) / maxTot) * 100)
                 : 0;
               return (
                 <tr key={row.name}>
                   <td><strong>{row.name}</strong></td>
-                  <td>{phy}/60</td>
-                  <td>{che}/60</td>
-                  <td>{mat}/60</td>
-                  <td><strong style={{ color: '#1a4fa0' }}>{total ?? '—'}/180</strong></td>
+                  {subScores.map((v, i) => (
+                    <td key={i} style={{ color: v === '—' ? 'var(--gray-300)' : 'inherit' }}>
+                      {v !== '—' ? `${v}/${streamCfg.maxPerSubject}` : '—'}
+                    </td>
+                  ))}
+                  <td><strong style={{ color: '#1a4fa0' }}>{total ?? '—'}/{maxTot}</strong></td>
                   <td><span className={`chip ${pct >= 60 ? 'chip-good' : 'chip-weak'}`}>{pct}%</span></td>
                 </tr>
               );
             })}
             {!chartData.length && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24, color: 'var(--gray-400)' }}>No marks recorded yet.</td></tr>
+              <tr><td colSpan={streamCfg.subjects.length + 3} style={{ textAlign: 'center', padding: 24, color: 'var(--gray-400)' }}>No marks recorded yet.</td></tr>
             )}
           </tbody>
         </table>
@@ -203,11 +254,16 @@ export default function StudentDashboard() {
         </div>
         <div>
           <h1>{profile["STUDENT'S NAME"]}</h1>
-          <p>Roll: {profile.ROLL_KEY} · {profile.centerCode || ''}</p>
+          <p>
+            Roll: {profile.ROLL_KEY} · {profile.centerCode || ''}
+            <span style={{ marginLeft: 8, fontSize: 11, padding: '2px 7px', borderRadius: 4, background: 'rgba(255,255,255,.2)', fontWeight: 600 }}>
+              {stream}
+            </span>
+          </p>
         </div>
         <div style={{ marginLeft: 'auto', background: 'rgba(255,255,255,.12)', padding: '8px 16px', borderRadius: 8, textAlign: 'center' }}>
           <div style={{ fontSize: 22, fontWeight: 800 }}>{latestTotal ?? '—'}</div>
-          <div style={{ fontSize: 11, opacity: 0.8 }}>Latest</div>
+          <div style={{ fontSize: 11, opacity: 0.8 }}>Latest / {streamCfg.maxTotal}</div>
         </div>
       </div>
 
