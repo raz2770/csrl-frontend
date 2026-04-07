@@ -73,7 +73,22 @@ export function parseTestColumn(col) {
 // ── Backend API helper ─────────────────────────────────────────────────────────
 
 const TOKEN_KEY = 'csrl_token';
-const API_BASE = String(import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+
+function resolveApiBase() {
+  const envBase = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+  if (envBase) return envBase.replace(/\/$/, '');
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host.endsWith('.vercel.app')) {
+      return 'https://csrl-backend.onrender.com/api';
+    }
+  }
+
+  return '/api';
+}
+
+const API_BASE = resolveApiBase();
 
 function getToken() {
   return localStorage.getItem(TOKEN_KEY);

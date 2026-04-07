@@ -21,7 +21,21 @@ const USER_KEY  = 'csrl_user';
 
 const AuthContext = createContext(null);
 
-const API_BASE = String(import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+function resolveApiBase() {
+  const envBase = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+  if (envBase) return envBase.replace(/\/$/, '');
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host.endsWith('.vercel.app')) {
+      return 'https://csrl-backend.onrender.com/api';
+    }
+  }
+
+  return '/api';
+}
+
+const API_BASE = resolveApiBase();
 
 export const AuthProvider = ({ children }) => {
   // undefined = still reading localStorage (show nothing / spinner)
