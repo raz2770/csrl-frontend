@@ -48,12 +48,16 @@ const CENTRES = {
 // Pattern: rollKey.toLowerCase()  e.g. "gail001"
 const STUDENT_PASSWORD_FN = (rollKey) => String(rollKey).toLowerCase();
 
+// Set true to delete all Firestore collections before import.
+const WIPE_FIRESTORE_FIRST = true;
+
 // ── END CONFIG ──────────────────────────────────────────────────────────────
 
 import admin       from "firebase-admin";
 import Papa        from "papaparse";
 import fetch       from "node-fetch";
 import { readFileSync } from "fs";
+import process from "node:process";
 
 // Initialise Firebase Admin
 const serviceAccount = JSON.parse(readFileSync(new URL("./serviceAccountKey.json", import.meta.url)));
@@ -128,6 +132,78 @@ function sanitizeTestRecord(test) {
   return cleaned;
 }
 
+function parseTestColumn(col) {
+  const raw = String(col || "").trim();
+  if (!raw) return { testName: "", subject: "", isTotal: false };
+
+  // New format: CAT-1(TEST)_Physics
+  const underscored = raw.match(/^(.*)_([^_]+)$/);
+  if (underscored) {
+    return {
+      testName: underscored[1].trim(),
+      subject: underscored[2].trim(),
+      isTotal: false,
+    };
+  }
+
+  // Legacy format: PHY Test 1
+  const parts = raw.split(/\s+/);
+  if (parts.length > 1) {
+    const token = (parts[0] || "").toUpperCase();
+    const SUBJECT_ALIASES = {
+      PHY: "Physics",
+      CHE: "Chemistry",
+      MAT: "Math",
+    };
+    if (SUBJECT_ALIASES[token]) {
+      return {
+        testName: parts.slice(1).join(" "),
+        subject: SUBJECT_ALIASES[token],
+        isTotal: false,
+      };
+    }
+  }
+
+  // Test total column: CAT-1(TEST)
+  return {
+    testName: raw,
+    subject: "Total",
+    isTotal: true,
+  };
+}
+
+function buildNestedTests(test) {
+  const cleaned = sanitizeTestRecord(test);
+  const tests = {};
+
+  Object.entries(cleaned).forEach(([column, value]) => {
+    const { testName, subject, isTotal } = parseTestColumn(column);
+    if (!testName) return;
+
+    if (!tests[testName]) tests[testName] = {};
+    if (isTotal) {
+      tests[testName].Total = value;
+    } else {
+      tests[testName][subject] = value;
+    }
+  });
+
+  return tests;
+}
+
+async function wipeEntireFirestore() {
+  const rootCollections = await db.listCollections();
+  if (!rootCollections.length) {
+    console.log("  ℹ️  Firestore is already empty.");
+    return;
+  }
+
+  for (const coll of rootCollections) {
+    console.log(`  Deleting collection: ${coll.id}`);
+    await db.recursiveDelete(coll);
+  }
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function migrate() {
@@ -151,6 +227,12 @@ async function migrate() {
       console.error("\n❌ Firestore connection failed:", e.message);
     }
     process.exit(1);
+  }
+
+  if (WIPE_FIRESTORE_FIRST) {
+    console.log("→ Wiping entire Firestore database…");
+    await wipeEntireFirestore();
+    console.log("  ✅ Firestore wiped\n");
   }
 
   // 1. Create admin Auth user + Firestore profile
@@ -228,10 +310,10 @@ async function migrate() {
       const rawRoll = test["ROLL NO."] || test["ROLL_KEY"] || "";
       if (!rawRoll.trim()) continue;
       const ROLL_KEY = rawRoll.trim();
-      const cleanedTest = sanitizeTestRecord(test);
+      const nestedTests = buildNestedTests(test);
       testEntries.push({
         ref:  db.doc(`testScores/${ROLL_KEY}`),
-        data: { ...cleanedTest },
+        data: { rollKey: ROLL_KEY, centerCode: code, tests: nestedTests },
       });
     }
     await batchWrite(testEntries);
