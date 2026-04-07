@@ -85,7 +85,7 @@ function resolveApiBase() {
     }
   }
 
-  return '/api';
+  return '';
 }
 
 const API_BASE = resolveApiBase();
