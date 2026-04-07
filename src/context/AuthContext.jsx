@@ -32,7 +32,7 @@ function resolveApiBase() {
     }
   }
 
-  return '';
+  return '/api';
 }
 
 const API_BASE = resolveApiBase();

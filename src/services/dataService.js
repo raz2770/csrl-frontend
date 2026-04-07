@@ -85,7 +85,7 @@ function resolveApiBase() {
     }
   }
 
-  return '';
+  return '/api';
 }
 
 const API_BASE = resolveApiBase();
@@ -105,7 +105,16 @@ async function apiFetch(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const url = path.startsWith('http') ? path : `${API_BASE}${path}`;
+  let url;
+  if (path.startsWith('http')) {
+    url = path;
+  } else {
+    let normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    if (API_BASE.endsWith('/api') && normalizedPath.startsWith('/api/')) {
+      normalizedPath = normalizedPath.slice(4);
+    }
+    url = `${API_BASE}${normalizedPath}`;
+  }
 
   const res = await fetch(url, {
     method,
