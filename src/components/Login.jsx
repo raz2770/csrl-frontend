@@ -47,14 +47,7 @@ export default function Login() {
       }
       navigate('/');
     } catch (err) {
-      const code = err?.code || '';
-      if (code.includes('user-not-found') || code.includes('wrong-password') || code.includes('invalid-credential')) {
-        setError('Invalid credentials. Please check your details and try again.');
-      } else if (code.includes('too-many-requests')) {
-        setError('Too many failed attempts. Please try again later.');
-      } else {
-        setError(err?.message || 'Sign-in failed. Please try again.');
-      }
+      setError(err?.message || 'Sign-in failed. Please try again.');
     } finally {
       setLoading(false);
     }

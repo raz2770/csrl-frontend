@@ -1,102 +1,78 @@
 // ============================================================
-// AuthContext — Firebase Auth version
+// AuthContext — Backend JWT version
 //
-// * Keeps the same external API: { user, login, logout }
-// * user shape: { uid, role, name, id, centerCode?, token? }
-//   - role:       'ADMIN' | 'CENTRE' | 'STUDENT'
-//   - id:         admin username / centreCode / rollKey
-//   - centerCode: only for CENTRE & STUDENT
-//   - token:      kept as null (no longer needed — Firestore rules
-//                 use Firebase Auth UID, not a JWT)
+// Auth flow:
+//   1. POST /api/auth/login  → receives JWT + user info
+//   2. JWT stored in localStorage (csrl_token)
+//   3. User state stored in localStorage (csrl_user) for page-refresh restore
+//   4. All API calls read the JWT from localStorage via dataService.js
 //
-// Login UX is UNCHANGED (role selector + ID + password).
-// Internally we map:
-//   ADMIN   → admin@csrl.internal
-//   CENTRE  → {centreCode}@csrl.internal   e.g. gail@csrl.internal
-//   STUDENT → {rollKey}@csrl.internal      e.g. gail001@csrl.internal
+// user shape: { token, role, id, name, centerCode, stream }
+//   role:       'ADMIN' | 'CENTRE' | 'STUDENT'
+//   id:         'admin' | centreCode | rollKey
+//   centerCode: only set for CENTRE & STUDENT
+//   stream:     only set for STUDENT ('JEE' | 'NEET')
 // ============================================================
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import {
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-} from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "../config/firebase";
+import { createContext, useContext, useState, useEffect } from 'react';
+
+export const TOKEN_KEY = 'csrl_token';
+const USER_KEY  = 'csrl_user';
 
 const AuthContext = createContext(null);
 
-// ── helpers ─────────────────────────────────────────────────────────────────
-
-/** Build the internal Firebase Auth email from role + id */
-function buildEmail(role, id) {
-  const normalised = String(id).toLowerCase().replace(/\s+/g, "");
-  switch (role) {
-    case "admin":   return "admin@csrl.internal";
-    case "centre":  return `${normalised}@csrl.internal`;
-    case "student": return `${normalised}@csrl.internal`;
-    default:        return `${normalised}@csrl.internal`;
-  }
-}
-
-/** Read user profile from Firestore users/{uid} */
-async function fetchUserProfile(uid) {
-  const snap = await getDoc(doc(db, "users", uid));
-  if (!snap.exists()) throw new Error("User profile not found in Firestore");
-  return snap.data(); // { role, name, centerCode?, rollKey? }
-}
-
-// ── Provider ─────────────────────────────────────────────────────────────────
-
 export const AuthProvider = ({ children }) => {
-  const [user, setUser]       = useState(undefined); // undefined = loading
-  const [loading, setLoading] = useState(true);
+  // undefined = still reading localStorage (show nothing / spinner)
+  const [user, setUser] = useState(undefined);
 
-  /* Restore session on app start / refresh */
+  // Restore session synchronously from localStorage on first render
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          const profile = await fetchUserProfile(firebaseUser.uid);
-          setUser(buildUserState(firebaseUser.uid, profile));
-        } catch {
-          // Profile missing — sign out cleanly
-          await signOut(auth);
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    });
-    return () => unsub();
+    try {
+      const stored = localStorage.getItem(USER_KEY);
+      setUser(stored ? JSON.parse(stored) : null);
+    } catch {
+      setUser(null);
+    }
   }, []);
 
   /**
    * login({ role, id, password })
-   *   role     – 'admin' | 'centre' | 'student'
-   *   id       – username / centreCode / rollKey
-   *   password – plain text password
+   * Calls the backend, stores the JWT + user object, updates state.
    */
   const login = async ({ role, id, password }) => {
-    // Students login with their roll number as password too (configurable)
-    const email    = buildEmail(role, id);
-    const pwd      = password || id; // student has no separate password field
+    const res = await fetch('/api/auth/login', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ role, id, password }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || 'Invalid credentials. Please try again.');
+    }
 
-    const cred    = await signInWithEmailAndPassword(auth, email, pwd);
-    const profile = await fetchUserProfile(cred.user.uid);
-    const userState = buildUserState(cred.user.uid, profile);
+    const userState = {
+      token:      data.token,
+      role:       (data.role || 'student').toUpperCase(),
+      name:       data.name       || id,
+      id:         data.id         || id,
+      centerCode: data.centerCode || null,
+      stream:     data.stream     || null,
+    };
+
+    localStorage.setItem(TOKEN_KEY, data.token);
+    localStorage.setItem(USER_KEY,  JSON.stringify(userState));
     setUser(userState);
     return userState;
   };
 
-  const logout = async () => {
-    await signOut(auth);
+  const logout = () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
     setUser(null);
   };
 
-  if (loading) return null; // or a global spinner
+  // Show nothing while reading localStorage (avoids flash of login page)
+  if (user === undefined) return null;
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
@@ -106,17 +82,3 @@ export const AuthProvider = ({ children }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
-
-// ── shape builder ────────────────────────────────────────────────────────────
-
-function buildUserState(uid, profile) {
-  return {
-    uid,
-    role:       (profile.role || "student").toUpperCase(),
-    name:       profile.name  || "",
-    id:         profile.rollKey || profile.centreCode || "admin",
-    centerCode: profile.centreCode || null,
-    // token is null — Firestore security rules use Firebase Auth UID directly
-    token: null,
-  };
-}

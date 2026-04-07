@@ -313,10 +313,10 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteStudent = async (rollKey) => {
+  const handleDeleteStudent = async (rollKey, centerCode) => {
     if (!window.confirm(`Delete student ${rollKey}? This action cannot be undone.`)) return;
     try {
-      await deleteStudentApi(null, rollKey);
+      await deleteStudentApi(null, rollKey, centerCode);
       setData((d) => ({
         ...d,
         profiles: d.profiles.filter((p) => p.ROLL_KEY !== rollKey),
@@ -331,7 +331,7 @@ export default function AdminDashboard() {
   const handleSaveTestScores = async (scores) => {
     setModalLoading(true);
     try {
-      const result = await upsertTestScoresApi(null, modalStudent.ROLL_KEY, scores);
+      const result = await upsertTestScoresApi(null, modalStudent.ROLL_KEY, scores, modalStudent.centerCode);
       setData((d) => ({
         ...d,
         tests: d.tests.find((t) => t.ROLL_KEY === modalStudent.ROLL_KEY)
@@ -511,9 +511,10 @@ export default function AdminDashboard() {
         showToast(`Students imported: ${newCount} new, ${updateCount} updated.`, 'success');
       } else {
         for (const row of valid) {
-          const existing = data.tests.find((t) => t.ROLL_KEY === row.payload.roll);
-          const prev     = existing?.[uploadTestKey];
-          await upsertTestScoresApi(null, row.payload.roll, { [uploadTestKey]: row.payload.value });
+          const existing   = data.tests.find((t) => t.ROLL_KEY === row.payload.roll);
+          const profile    = data.profiles.find((p) => p.ROLL_KEY === row.payload.roll);
+          const prev       = existing?.[uploadTestKey];
+          await upsertTestScoresApi(null, row.payload.roll, { [uploadTestKey]: row.payload.value }, profile?.centerCode);
           if (prev === undefined || prev === null || prev === '') newCount++;
           else updateCount++;
         }
@@ -734,7 +735,7 @@ export default function AdminDashboard() {
                     <button type="button" className="btn btn-outline btn-sm" aria-label="Edit test scores" onClick={() => { setModalStudent(s); setModalMode('tests'); }}>
                       <FileText size={13} />
                     </button>
-                    <button type="button" className="btn btn-danger btn-sm" aria-label="Delete student" onClick={() => handleDeleteStudent(s.ROLL_KEY)}>
+                    <button type="button" className="btn btn-danger btn-sm" aria-label="Delete student" onClick={() => handleDeleteStudent(s.ROLL_KEY, s.centerCode)}>
                       <Trash2 size={13} />
                     </button>
                   </div>
