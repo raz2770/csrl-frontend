@@ -21,6 +21,8 @@ const USER_KEY  = 'csrl_user';
 
 const AuthContext = createContext(null);
 
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+
 export const AuthProvider = ({ children }) => {
   // undefined = still reading localStorage (show nothing / spinner)
   const [user, setUser] = useState(undefined);
@@ -40,7 +42,7 @@ export const AuthProvider = ({ children }) => {
    * Calls the backend, stores the JWT + user object, updates state.
    */
   const login = async ({ role, id, password }) => {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(`${API_BASE}/auth/login`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ role, id, password }),

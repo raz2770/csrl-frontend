@@ -73,6 +73,7 @@ export function parseTestColumn(col) {
 // ── Backend API helper ─────────────────────────────────────────────────────────
 
 const TOKEN_KEY = 'csrl_token';
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 
 function getToken() {
   return localStorage.getItem(TOKEN_KEY);
@@ -89,7 +90,9 @@ async function apiFetch(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(path, {
+  const url = path.startsWith('http') ? path : `${API_BASE}${path}`;
+
+  const res = await fetch(url, {
     method,
     headers,
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
