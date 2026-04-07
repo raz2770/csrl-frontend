@@ -200,7 +200,9 @@ export default function Layout() {
           </button>
         </div>
 
-        <Outlet context={{ activePage, setActivePage }} />
+        <div className="main-outlet">
+          <Outlet context={{ activePage, setActivePage }} />
+        </div>
       </div>
     </div>
   );

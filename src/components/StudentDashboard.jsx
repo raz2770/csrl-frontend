@@ -247,7 +247,7 @@ export default function StudentDashboard() {
   );
 
   return (
-    <div className="fade-in">
+    <div className="fade-in dashboard-page">
       <div className="page-header">
         <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
           {getInitials(profile["STUDENT'S NAME"])}
@@ -267,8 +267,8 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      <div className="content">
-        <div style={{ marginBottom: 14 }}>
+      <div className="content dashboard-page-body">
+        <div style={{ marginBottom: 14, flexShrink: 0 }}>
           <div className="tab-bar">
             {TABS.map(({ key, Icon, label }) => (
               <button
@@ -284,9 +284,11 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {activePage === 'profile'     && <ProfileTab />}
-        {activePage === 'performance' && <PerformanceTab />}
-        {activePage === 'marks'       && <MarksTab />}
+        <div className="dashboard-scroll">
+          {activePage === 'profile'     && <ProfileTab />}
+          {activePage === 'performance' && <PerformanceTab />}
+          {activePage === 'marks'       && <MarksTab />}
+        </div>
       </div>
     </div>
   );

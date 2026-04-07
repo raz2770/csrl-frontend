@@ -27,6 +27,10 @@
   --radius: 10px;
   --radius-sm: 6px;
 }
+html,
+body {
+  height: 100%;
+}
 body {
   font-family: 'Segoe UI', system-ui, sans-serif;
   background: var(--gray-50);
@@ -36,6 +40,9 @@ body {
 
 #root {
   min-height: 100vh;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .fade-in {
@@ -315,8 +322,58 @@ input, select, textarea {
   color: rgba(255,255,255,.35);
 }
 
-.layout { display: flex; min-height: 100vh; }
-.main { flex: 1; overflow: auto; }
+.layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+.main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.main-outlet {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Admin / Centre / Student dashboards: header + tabs fixed, lists scroll below */
+.dashboard-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.dashboard-page > .page-header {
+  flex-shrink: 0;
+}
+.dashboard-page-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.dashboard-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.dashboard-scroll .table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-shadow: 0 1px 0 var(--gray-100);
+}
 .content { padding: 24px; }
 .mobile-topbar {
   display: none;

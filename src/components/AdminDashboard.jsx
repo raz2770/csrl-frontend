@@ -533,17 +533,21 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', height: '60vh', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14, color: 'var(--gray-400)' }}>
-        <Loader2 size={36} className="spin" />
-        <p style={{ fontWeight: 600 }}>Aggregating all centre data…</p>
+      <div className="fade-in dashboard-page" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, color: 'var(--gray-400)' }}>
+          <Loader2 size={36} className="spin" />
+          <p style={{ fontWeight: 600 }}>Aggregating all centre data…</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--red)', padding: 32, justifyContent: 'center' }}>
-        <AlertTriangle size={20} />{error}
+      <div className="fade-in dashboard-page" style={{ justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--red)' }}>
+          <AlertTriangle size={20} />{error}
+        </div>
       </div>
     );
   }
@@ -552,7 +556,7 @@ export default function AdminDashboard() {
     const profile      = data.profiles.find((p) => p.ROLL_KEY === viewingStudentId);
     const studentTests = data.tests.find((t) => t.ROLL_KEY === viewingStudentId) || {};
     return (
-      <div className="fade-in">
+      <div className="fade-in dashboard-page">
         <div className="page-header">
           <button type="button" onClick={() => setViewingStudentId(null)} className="btn btn-sm" style={{ background: 'rgba(255,255,255,.15)', color: '#fff', border: 'none', marginRight: 8, gap: 5 }}>
             <ArrowLeft size={14} /> Back
@@ -562,8 +566,10 @@ export default function AdminDashboard() {
             <p>{profile?.["STUDENT'S NAME"]} · {viewingStudentId}</p>
           </div>
         </div>
-        <div className="content">
-          <StudentProfileView profile={profile} studentTests={studentTests} testColumns={data.testColumns} />
+        <div className="content dashboard-page-body">
+          <div className="dashboard-scroll">
+            <StudentProfileView profile={profile} studentTests={studentTests} testColumns={data.testColumns} />
+          </div>
         </div>
       </div>
     );
@@ -966,7 +972,7 @@ export default function AdminDashboard() {
   // ── Main render ────────────────────────────────────────────────────────────
 
   return (
-    <div className="fade-in">
+    <div className="fade-in dashboard-page">
       {/* Modals */}
       {(modalMode === 'add' || modalMode === 'edit') && (
         <StudentFormModal mode={modalMode} student={modalStudent} loading={modalLoading} onClose={() => setModalMode(null)} onSubmit={modalMode === 'add' ? handleAddStudent : handleEditStudent} />
@@ -1077,9 +1083,9 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Tabs + content */}
-      <div className="content">
-        <div style={{ marginBottom: 16 }}>
+      {/* Tabs + scrollable body (lists scroll here, not the whole window) */}
+      <div className="content dashboard-page-body">
+        <div style={{ marginBottom: 16, flexShrink: 0 }}>
           <div className="tab-bar">
             {TABS.map((tab) => {
               const TabIcon = tab.Icon;
@@ -1091,13 +1097,15 @@ export default function AdminDashboard() {
             })}
           </div>
         </div>
-        {activePage === 'leaderboard' && <LeaderboardSection />}
-        {activePage === 'overview'    && <OverviewSection />}
-        {activePage === 'students'    && <StudentsSection />}
-        {activePage === 'marks'       && <MarksSection />}
-        {activePage === 'import'      && <ImportExportSection />}
-        {activePage === 'top30'       && <Top30Section />}
-        {activePage === 'bottom30'    && <Bottom30Section />}
+        <div className="dashboard-scroll">
+          {activePage === 'leaderboard' && <LeaderboardSection />}
+          {activePage === 'overview'    && <OverviewSection />}
+          {activePage === 'students'    && <StudentsSection />}
+          {activePage === 'marks'       && <MarksSection />}
+          {activePage === 'import'      && <ImportExportSection />}
+          {activePage === 'top30'       && <Top30Section />}
+          {activePage === 'bottom30'    && <Bottom30Section />}
+        </div>
       </div>
     </div>
   );

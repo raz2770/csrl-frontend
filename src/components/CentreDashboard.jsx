@@ -96,17 +96,21 @@ export default function CentreDashboard() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', height: '60vh', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14, color: 'var(--gray-400)' }}>
-        <Loader2 size={36} className="spin" />
-        <p style={{ fontWeight: 600 }}>Loading {centreTitle}…</p>
+      <div className="fade-in dashboard-page" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, color: 'var(--gray-400)' }}>
+          <Loader2 size={36} className="spin" />
+          <p style={{ fontWeight: 600 }}>Loading {centreTitle}…</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--red)', padding: 32, justifyContent: 'center' }}>
-        <AlertTriangle size={20} />{error}
+      <div className="fade-in dashboard-page" style={{ justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--red)' }}>
+          <AlertTriangle size={20} />{error}
+        </div>
       </div>
     );
   }
@@ -115,7 +119,7 @@ export default function CentreDashboard() {
     const profile      = data.profiles.find((p) => p.ROLL_KEY === viewingStudentId);
     const studentTests = data.tests.find((t) => t.ROLL_KEY === viewingStudentId) || {};
     return (
-      <div className="fade-in">
+      <div className="fade-in dashboard-page">
         <div className="page-header">
           <button
             type="button"
@@ -130,8 +134,10 @@ export default function CentreDashboard() {
             <p>{profile?.["STUDENT'S NAME"]} · {viewingStudentId}</p>
           </div>
         </div>
-        <div className="content">
-          <StudentProfileView profile={profile} studentTests={studentTests} testColumns={data.testColumns} />
+        <div className="content dashboard-page-body">
+          <div className="dashboard-scroll">
+            <StudentProfileView profile={profile} studentTests={studentTests} testColumns={data.testColumns} />
+          </div>
         </div>
       </div>
     );
@@ -319,7 +325,7 @@ export default function CentreDashboard() {
   // ── Main render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="fade-in">
+    <div className="fade-in dashboard-page">
       <div className="page-header">
         <div style={{ padding: 10, borderRadius: 10, background: 'rgba(255,255,255,.15)', flexShrink: 0 }}>
           <Building2 size={24} color="#fff" aria-hidden="true" />
@@ -340,8 +346,8 @@ export default function CentreDashboard() {
         </div>
       </div>
 
-      <div className="content">
-        <div style={{ marginBottom: 14 }}>
+      <div className="content dashboard-page-body">
+        <div style={{ marginBottom: 14, flexShrink: 0 }}>
           <div className="tab-bar">
             {TABS.map(({ key, Icon, label }) => (
               <button
@@ -357,9 +363,11 @@ export default function CentreDashboard() {
           </div>
         </div>
 
-        {activePage === 'overview'  && <OverviewSection />}
-        {activePage === 'topbottom' && <RankingsPair />}
-        {activePage === 'students'  && <StudentsSection />}
+        <div className="dashboard-scroll">
+          {activePage === 'overview'  && <OverviewSection />}
+          {activePage === 'topbottom' && <RankingsPair />}
+          {activePage === 'students'  && <StudentsSection />}
+        </div>
       </div>
     </div>
   );
