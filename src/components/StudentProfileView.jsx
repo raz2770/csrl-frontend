@@ -196,7 +196,7 @@ export default function StudentProfileView({ profile, studentTests, testColumns 
       {/* Full Test Records */}
       <div className="card">
         <div className="section-title">📋 Complete Test Records</div>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>

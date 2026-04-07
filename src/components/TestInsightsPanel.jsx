@@ -1,0 +1,391 @@
+import { Loader2, Trophy, Target, BarChart3, TrendingDown, Users, AlertCircle } from 'lucide-react';
+import { CENTERS } from '../config/centers';
+
+function centreLabel(code) {
+  return CENTERS[code]?.name || code || '—';
+}
+
+/**
+ * CAT-style analysis from backend (marks-based; see payload.note).
+ */
+export default function TestInsightsPanel({
+  insights,
+  loading,
+  error,
+  highlightCenter,
+  testKey,
+  testOptions,
+  onTestKeyChange,
+  showStudentCard,
+}) {
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 48, color: 'var(--gray-400)' }}>
+        <Loader2 size={22} className="spin" />
+        <span style={{ fontWeight: 600 }}>Loading test analysis…</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="card" style={{ borderColor: 'var(--red)', background: 'var(--red-bg)', color: 'var(--red)' }}>
+        <AlertCircle size={18} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 8 }} />
+        {error}
+      </div>
+    );
+  }
+
+  if (!insights || !insights.testKey) {
+    return (
+      <div className="card" style={{ color: 'var(--gray-400)', textAlign: 'center', padding: 32 }}>
+        Select a test with subject-wise columns to view analysis.
+      </div>
+    );
+  }
+
+  const subjects = insights.subjects || [];
+  const cut = insights.cutoffs;
+
+  const rowHighlight = (code) =>
+    highlightCenter && code === highlightCenter
+      ? { background: 'rgba(26, 79, 160, .08)', outline: '1px solid rgba(26, 79, 160, .25)' }
+      : {};
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {testOptions?.length > 0 && typeof onTestKeyChange === 'function' && (
+        <div className="card" style={{ padding: '12px 16px' }}>
+          <label className="label" htmlFor="insight-test-select" style={{ marginBottom: 6 }}>
+            Test
+          </label>
+          <select
+            id="insight-test-select"
+            className="input select"
+            value={testKey || ''}
+            onChange={(e) => onTestKeyChange(e.target.value)}
+            style={{ maxWidth: 360 }}
+          >
+            {testOptions.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <div
+        className="card"
+        style={{
+          background: 'var(--yellow-bg)',
+          border: '1px solid #fde68a',
+          fontSize: 13,
+          color: '#92400e',
+          lineHeight: 1.6,
+        }}
+      >
+        <strong>How this compares to your memo</strong>
+        <p style={{ marginTop: 8, marginBottom: 0 }}>
+          {insights.note}
+        </p>
+        {cut && (
+          <p style={{ marginTop: 8, marginBottom: 0 }}>
+            Default qualification: total ≥ <strong>{cut.overallMin}</strong> / {cut.maxTotal} (
+            {Math.round(cut.overallQualifyRatio * 100)}%), each subject ≥ <strong>{cut.subjectMin}</strong> / {cut.maxPerSubject} (
+            {Math.round(cut.subjectQualifyRatio * 100)}%).
+          </p>
+        )}
+      </div>
+
+      {showStudentCard && insights.studentInsight && (
+        <div className="card" style={{ border: '2px solid var(--csrl-blue)', background: 'var(--csrl-blue-light)' }}>
+          <div className="section-title" style={{ marginBottom: 10 }}>
+            <Users size={16} aria-hidden="true" />
+            Your result — {insights.testKey}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12, fontSize: 14 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--gray-600)' }}>Rank (by total)</div>
+              <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--csrl-blue)' }}>
+                {insights.studentInsight.rank != null
+                  ? `#${insights.studentInsight.rank} / ${insights.studentInsight.totalStudentsRanked || '—'}`
+                  : '—'}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--gray-600)' }}>Total marks</div>
+              <div style={{ fontWeight: 700 }}>{insights.studentInsight.total ?? '—'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--gray-600)' }}>Qualified</div>
+              <div style={{ fontWeight: 700, color: insights.studentInsight.qualified ? 'var(--green)' : 'var(--red)' }}>
+                {insights.studentInsight.appeared ? (insights.studentInsight.qualified ? 'Yes' : 'No') : 'No attempt'}
+              </div>
+            </div>
+          </div>
+          {subjects.length > 0 && (
+            <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {subjects.map((sub) => (
+                <span key={sub} className="badge" style={{ background: '#fff', color: 'var(--gray-800)' }}>
+                  {sub}: {insights.studentInsight.subjectScores?.[sub] ?? '—'}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="grid-2">
+        <div className="card">
+          <div className="section-title" style={{ marginBottom: 12 }}>
+            <Trophy size={16} color="#d97706" aria-hidden="true" />
+            Highest total
+          </div>
+          {insights.overallTopper ? (
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--gray-800)' }}>{insights.overallTopper.name}</div>
+              <div style={{ fontSize: 13, color: 'var(--gray-600)', marginTop: 4 }}>
+                {insights.overallTopper.roll} · {centreLabel(insights.overallTopper.center)}
+              </div>
+              <div style={{ marginTop: 10, fontSize: 22, fontWeight: 800, color: '#1a4fa0' }}>
+                {insights.overallTopper.total} <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-400)' }}>marks</span>
+              </div>
+            </div>
+          ) : (
+            <div style={{ color: 'var(--gray-400)' }}>No scores for this test.</div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="section-title" style={{ marginBottom: 12 }}>
+            <Target size={16} color="#1a6e3b" aria-hidden="true" />
+            Best score % (total / max)
+          </div>
+          {insights.bestScorePercentStudent ? (
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--gray-800)' }}>{insights.bestScorePercentStudent.name}</div>
+              <div style={{ fontSize: 13, color: 'var(--gray-600)', marginTop: 4 }}>
+                {insights.bestScorePercentStudent.roll} · {centreLabel(insights.bestScorePercentStudent.center)}
+              </div>
+              <div style={{ marginTop: 10, fontSize: 22, fontWeight: 800, color: '#1a6e3b' }}>
+                {insights.bestScorePercentStudent.scorePercent}%
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-400)', marginLeft: 8 }}>
+                  ({insights.bestScorePercentStudent.total} / 180)
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div style={{ color: 'var(--gray-400)' }}>No scores for this test.</div>
+          )}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="section-title">
+          <BarChart3 size={16} aria-hidden="true" />
+          Subject averages (global) — lowest score % first
+        </div>
+        {insights.weakestSubjectByScorePercent && (
+          <p style={{ fontSize: 13, color: 'var(--gray-600)', marginBottom: 12 }}>
+            Weakest by avg marks vs max: <strong style={{ color: 'var(--red)' }}>{insights.weakestSubjectByScorePercent}</strong>
+          </p>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {(insights.globalSubjectStats || []).map((s) => (
+            <div key={s.subject}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                <span style={{ fontWeight: 600 }}>{s.subject}</span>
+                <span>
+                  Avg {s.avgMarks} · {s.scorePercentOfMax}% of max
+                  <span style={{ color: 'var(--gray-400)', marginLeft: 6 }}>(n={s.studentCount})</span>
+                </span>
+              </div>
+              <div className="progress-bar">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${Math.min(100, s.scorePercentOfMax)}%`, background: '#1a4fa0' }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="section-title">Top 10 — by total marks</div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Student</th>
+                <th>Centre</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(insights.top10 || []).map((r) => (
+                <tr key={r.roll}>
+                  <td><strong>{r.rank}</strong></td>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{r.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--gray-400)' }}>{r.roll}</div>
+                  </td>
+                  <td>{r.center}</td>
+                  <td><strong style={{ color: '#1a4fa0' }}>{r.marks}</strong></td>
+                </tr>
+              ))}
+              {!(insights.top10 || []).length && (
+                <tr>
+                  <td colSpan={4} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: 20 }}>
+                    No data
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ marginTop: 12, fontSize: 13, color: 'var(--gray-600)' }}>
+          <strong>Top 10 by centre:</strong>{' '}
+          {Object.keys(insights.top10CentreCounts || {}).length === 0
+            ? '—'
+            : Object.entries(insights.top10CentreCounts)
+                .map(([c, n]) => `${centreLabel(c)} (${n})`)
+                .join(', ')}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="section-title">Centre rank — average total & qualification</div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Centre</th>
+                <th>Appeared</th>
+                <th>Qualified</th>
+                <th>Qual %</th>
+                {subjects.map((sub) => (
+                  <th key={sub}>Avg {sub}</th>
+                ))}
+                <th>Avg total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(insights.centreRows || []).map((row) => (
+                <tr key={row.code} style={rowHighlight(row.code)}>
+                  <td>{row.rank}</td>
+                  <td>
+                    <strong>{row.code}</strong>
+                    <div style={{ fontSize: 11, color: 'var(--gray-400)' }}>{centreLabel(row.code)}</div>
+                  </td>
+                  <td>{row.appeared}</td>
+                  <td>{row.qualified}</td>
+                  <td>{row.qualRate}%</td>
+                  {subjects.map((sub) => (
+                    <td key={sub}>{row.subjectAvgs?.[sub] ?? '—'}</td>
+                  ))}
+                  <td><strong>{row.totalAvg}</strong></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="section-title">
+          <TrendingDown size={16} color="var(--red)" aria-hidden="true" />
+          Bottom 5 centres — by avg total
+        </div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Centre</th>
+                <th>Avg total</th>
+                <th>Qual %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(insights.bottom5Centres || []).map((row) => (
+                <tr key={row.code} style={rowHighlight(row.code)}>
+                  <td>
+                    <strong>{row.code}</strong> — {centreLabel(row.code)}
+                  </td>
+                  <td>{row.totalAvg}</td>
+                  <td>{row.qualRate}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="grid-2">
+        <div className="card">
+          <div className="section-title" style={{ fontSize: 14 }}>Not qualified (overall) — count by centre</div>
+          <p style={{ fontSize: 12, color: 'var(--gray-600)', marginBottom: 10 }}>Students who attempted but did not meet qualification rules.</p>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.8 }}>
+            {Object.entries(insights.notQualifiedOverall || {})
+              .filter(([, n]) => n > 0)
+              .sort((a, b) => b[1] - a[1])
+              .map(([code, n]) => (
+                <li key={code}>
+                  {code}: {n}
+                </li>
+              ))}
+            {!Object.values(insights.notQualifiedOverall || {}).some((n) => n > 0) && (
+              <li style={{ color: 'var(--gray-400)' }}>None</li>
+            )}
+          </ul>
+        </div>
+
+        <div className="card">
+          <div className="section-title" style={{ fontSize: 14 }}>Low qualification rate (≤ 50%)</div>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.8 }}>
+            {(insights.qualificationRateByCentre || [])
+              .filter((r) => r.qualRate <= 50)
+              .map((r) => (
+                <li key={r.code}>
+                  {r.code}: {r.qualRate}%
+                </li>
+              ))}
+            {!(insights.qualificationRateByCentre || []).some((r) => r.qualRate <= 50) && (
+              <li style={{ color: 'var(--gray-400)' }}>No centre at or below 50%</li>
+            )}
+          </ul>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="section-title">Below subject cutoff — count by centre</div>
+        <p style={{ fontSize: 12, color: 'var(--gray-600)', marginBottom: 12 }}>
+          Students with a subject mark below {cut?.subjectMin ?? '—'} (among those with a score in that subject).
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+          {subjects.map((sub) => (
+            <div key={sub} style={{ background: 'var(--gray-50)', borderRadius: 8, padding: 12 }}>
+              <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--csrl-blue)' }}>{sub}</div>
+              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, lineHeight: 1.7 }}>
+                {Object.entries((insights.notQualifiedBySubject || {})[sub] || {})
+                  .filter(([, n]) => n > 0)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([code, n]) => (
+                    <li key={code}>
+                      {code}: {n}
+                    </li>
+                  ))}
+                {!Object.values((insights.notQualifiedBySubject || {})[sub] || {}).some((n) => n > 0) && (
+                  <li style={{ color: 'var(--gray-400)' }}>None</li>
+                )}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

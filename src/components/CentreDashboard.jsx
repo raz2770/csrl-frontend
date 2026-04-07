@@ -1,18 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Trophy, Users, AlertTriangle, BarChart2, TrendingUp, Building2, ArrowLeft, Loader2, Search, Eye } from 'lucide-react';
+import { LayoutDashboard, Trophy, Users, AlertTriangle, BarChart2, BarChart3, TrendingUp, Building2, ArrowLeft, Loader2, Search, Eye } from 'lucide-react';
 import {
   fetchCenterDataApi,
   fetchOverview,
   fetchRankings,
   fetchSubjectAverages,
+  fetchTestInsights,
 } from '../services/dataService';
 import { useAuth } from '../context/AuthContext';
 import StudentProfileView from './StudentProfileView';
 import { CENTERS } from '../config/centers';
+import TestInsightsPanel from './TestInsightsPanel';
 
 const TABS = [
   { key: 'overview',  Icon: LayoutDashboard, label: 'Overview'  },
+  { key: 'insights',  Icon: BarChart3,       label: 'Test analysis' },
   { key: 'topbottom', Icon: Trophy,          label: 'Rankings'  },
   { key: 'students',  Icon: Users,           label: 'Students'  },
 ];
@@ -35,6 +38,9 @@ export default function CentreDashboard() {
   const [viewingStudentId, setViewingStudentId] = useState(null);
   const [selectedTestKey,  setSelectedTestKey]  = useState('');
   const [searchTerm,       setSearchTerm]       = useState('');
+  const [testInsights, setTestInsights]         = useState(null);
+  const [testInsightsLoading, setTestInsightsLoading] = useState(false);
+  const [testInsightsError, setTestInsightsError]   = useState('');
 
   const centreTitle = CENTERS[auth.centerCode]?.name || auth.name || auth.centerCode;
 
@@ -43,14 +49,12 @@ export default function CentreDashboard() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [d, ov, avgs] = await Promise.all([
+        const [d, ov] = await Promise.all([
           fetchCenterDataApi(null, auth.centerCode),
           fetchOverview(null, auth.centerCode).catch(() => null),
-          fetchSubjectAverages(null, auth.centerCode).catch(() => []),
         ]);
         setData(d);
         setOverview(ov);
-        setSubjectAvgs(avgs);
 
         // Select last total-column (no underscore) as default test key
         const rankingCols = (d.testColumns || []).filter((c) => !String(c).includes('_'));
@@ -65,6 +69,22 @@ export default function CentreDashboard() {
     load();
   }, [auth.centerCode]);
 
+  // Subject performance + weak subject for the selected test only
+  useEffect(() => {
+    if (!auth.centerCode || !selectedTestKey) return undefined;
+    let cancelled = false;
+    fetchSubjectAverages(null, auth.centerCode, selectedTestKey)
+      .then((avgs) => {
+        if (!cancelled) setSubjectAvgs(Array.isArray(avgs) ? avgs : []);
+      })
+      .catch(() => {
+        if (!cancelled) setSubjectAvgs([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.centerCode, selectedTestKey]);
+
   // ── Reload rankings when selectedTestKey changes ──────────────────────────────
 
   useEffect(() => {
@@ -77,6 +97,26 @@ export default function CentreDashboard() {
       setBottomRanked(bottom.ranked || []);
     });
   }, [selectedTestKey, auth.centerCode]);
+
+  useEffect(() => {
+    if (activePage !== 'insights' || !selectedTestKey) return undefined;
+    let cancelled = false;
+    setTestInsightsLoading(true);
+    setTestInsightsError('');
+    fetchTestInsights(null, selectedTestKey, null)
+      .then((d) => {
+        if (!cancelled) setTestInsights(d);
+      })
+      .catch((err) => {
+        if (!cancelled) setTestInsightsError(err.message || 'Failed to load test analysis');
+      })
+      .finally(() => {
+        if (!cancelled) setTestInsightsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activePage, selectedTestKey]);
 
   const rankingTestColumns = useMemo(
     () => (data?.testColumns || []).filter((c) => !String(c).includes('_')),
@@ -91,6 +131,17 @@ export default function CentreDashboard() {
       (p.ROLL_KEY         || '').toLowerCase().includes(q)
     );
   }, [data, searchTerm]);
+
+  /** Lowest centre-wide subject average(s) from parsed test marks (same rule as overview KPI). */
+  const { minSubjectAvg, weakSubjectFromPerformance } = useMemo(() => {
+    if (!subjectAvgs.length) return { minSubjectAvg: null, weakSubjectFromPerformance: null };
+    const minAvg = Math.min(...subjectAvgs.map((s) => s.avg));
+    const tied = subjectAvgs.filter((s) => s.avg === minAvg);
+    const label = tied.length === 1
+      ? tied[0].subject
+      : tied.map((t) => t.subject).join(', ');
+    return { minSubjectAvg: minAvg, weakSubjectFromPerformance: label };
+  }, [subjectAvgs]);
 
   // ── Render states ─────────────────────────────────────────────────────────────
 
@@ -147,7 +198,7 @@ export default function CentreDashboard() {
 
   const OverviewSection = () => {
     const totalStudents = overview?.totalStudents ?? data.profiles.length;
-    const weakSubject   = overview?.weakSubject   ?? 'N/A';
+    const weakSubject   = weakSubjectFromPerformance ?? overview?.weakSubject ?? 'N/A';
     const avgScore      = topRanked.length
       ? Math.round(topRanked.reduce((s, r) => s + r.marks, 0) / topRanked.length)
       : 0;
@@ -178,21 +229,30 @@ export default function CentreDashboard() {
 
         {subjectAvgs.length > 0 && (
           <div className="card">
-            <div className="section-title">Subject Performance (avg across all tests)</div>
-            {subjectAvgs.map((s, i) => (
-              <div key={s.subject} style={{ marginBottom: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
-                  <span style={{ fontWeight: i === 0 ? 700 : 400, color: i === 0 ? 'var(--red)' : 'inherit' }}>
-                    {s.subject}
-                    {i === 0 && <AlertTriangle size={12} style={{ marginLeft: 5 }} color="var(--red)" />}
-                  </span>
-                  <span style={{ fontWeight: 600 }}>{s.avg}</span>
+            <div className="section-title">Subject Performance — {selectedTestKey}</div>
+            <div style={{ fontSize: 12, color: 'var(--gray-600)', marginTop: -8, marginBottom: 12 }}>
+              Averages for this test only. Weakest subject first (lowest average).
+            </div>
+            {subjectAvgs.map((s) => {
+              const isWeakest = minSubjectAvg != null && s.avg === minSubjectAvg;
+              return (
+                <div key={s.subject} style={{ marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
+                    <span style={{ fontWeight: isWeakest ? 700 : 400, color: isWeakest ? 'var(--red)' : 'inherit' }}>
+                      {s.subject}
+                      {isWeakest && <AlertTriangle size={12} style={{ marginLeft: 5 }} color="var(--red)" aria-hidden="true" />}
+                    </span>
+                    <span style={{ fontWeight: 600 }}>{s.avg}</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${Math.min(100, s.avg)}%`, background: isWeakest ? '#e74c3c' : '#1a4fa0' }}
+                    />
+                  </div>
                 </div>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: `${Math.min(100, s.avg)}%`, background: i === 0 ? '#e74c3c' : '#1a4fa0' }} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -206,6 +266,7 @@ export default function CentreDashboard() {
           <TrendingUp size={14} aria-hidden="true" />
           Top 10 — {selectedTestKey}
         </div>
+        <div className="table-wrap">
         <table className="table">
           <thead><tr><th>#</th><th>Student</th><th>Stream</th><th>Total</th></tr></thead>
           <tbody>
@@ -234,6 +295,7 @@ export default function CentreDashboard() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div className="card">
@@ -241,6 +303,7 @@ export default function CentreDashboard() {
           <AlertTriangle size={14} color="var(--red)" aria-hidden="true" />
           Bottom 10 — {selectedTestKey}
         </div>
+        <div className="table-wrap">
         <table className="table">
           <thead><tr><th>Rank</th><th>Student</th><th>Total</th></tr></thead>
           <tbody>
@@ -261,6 +324,7 @@ export default function CentreDashboard() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
@@ -278,9 +342,10 @@ export default function CentreDashboard() {
           placeholder="Search by name or roll…"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ maxWidth: 280, paddingLeft: 30 }}
+          style={{ maxWidth: 280, paddingLeft: 30, width: '100%' }}
         />
       </div>
+      <div className="table-wrap">
       <table className="table">
         <thead>
           <tr><th>Roll</th><th>Name</th><th>Stream</th><th>Category</th><th>Mobile</th><th>Actions</th></tr>
@@ -319,6 +384,7 @@ export default function CentreDashboard() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 
@@ -334,7 +400,7 @@ export default function CentreDashboard() {
           <h1>{centreTitle}</h1>
           <p>{data.profiles.length} students</p>
         </div>
-        <div style={{ marginLeft: 'auto' }}>
+        <div className="page-header-toolbar" style={{ marginLeft: 'auto' }}>
           <select
             className="input select"
             value={selectedTestKey}
@@ -365,6 +431,15 @@ export default function CentreDashboard() {
 
         <div className="dashboard-scroll">
           {activePage === 'overview'  && <OverviewSection />}
+          {activePage === 'insights' && (
+            <TestInsightsPanel
+              insights={testInsights}
+              loading={testInsightsLoading}
+              error={testInsightsError}
+              highlightCenter={auth.centerCode}
+              testKey={selectedTestKey}
+            />
+          )}
           {activePage === 'topbottom' && <RankingsPair />}
           {activePage === 'students'  && <StudentsSection />}
         </div>

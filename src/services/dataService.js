@@ -22,6 +22,7 @@
 //   GET  /api/analytics/rankings       — ranked student list
 //   GET  /api/analytics/centre-leaderboard — centre rankings
 //   GET  /api/analytics/subject-averages   — per-subject averages
+//   GET  /api/analytics/test-insights       — CAT-style analysis for one test (marks-based)
 //   GET  /api/analytics/student-chart      — chart data for one student
 //   GET  /api/analytics/test-columns       — known test column names
 // ============================================================
@@ -207,9 +208,19 @@ export async function fetchCentreLeaderboard(_token, testKey) {
   return apiFetch(`/api/analytics/centre-leaderboard?testKey=${encodeURIComponent(testKey)}`);
 }
 
-export async function fetchSubjectAverages(_token, centerCode) {
-  const qs = centerCode ? `?centerCode=${encodeURIComponent(centerCode)}` : '';
+export async function fetchSubjectAverages(_token, centerCode, testKey) {
+  const params = new URLSearchParams();
+  if (centerCode) params.set('centerCode', centerCode);
+  if (testKey) params.set('testKey', testKey);
+  const qs = params.toString() ? `?${params}` : '';
   return apiFetch(`/api/analytics/subject-averages${qs}`);
+}
+
+/** CAT-style test analysis (marks-based). Optional rollKey highlights one student in the payload. */
+export async function fetchTestInsights(_token, testKey, rollKey) {
+  const params = new URLSearchParams({ testKey });
+  if (rollKey) params.set('rollKey', rollKey);
+  return apiFetch(`/api/analytics/test-insights?${params}`);
 }
 
 export async function fetchStudentChart(_token, rollKey, centerCode) {

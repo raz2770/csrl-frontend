@@ -12,6 +12,7 @@ import {
   TrendingDown,
   User,
   BarChart2,
+  BarChart3,
   ClipboardList,
   LogOut,
 } from 'lucide-react';
@@ -20,6 +21,7 @@ const ADMIN_NAV = [
   { section: 'Overview' },
   { key: 'leaderboard', Icon: Trophy,         label: 'Centre Leaderboard' },
   { key: 'overview',    Icon: LayoutDashboard, label: 'Dashboard'          },
+  { key: 'insights',    Icon: BarChart3,       label: 'Test analysis'      },
   { section: 'Data Management' },
   { key: 'students',    Icon: Users,           label: 'Students'           },
   { key: 'marks',       Icon: FileText,        label: 'Test Marks'         },
@@ -32,6 +34,7 @@ const ADMIN_NAV = [
 
 const CENTRE_NAV = [
   { key: 'overview',   Icon: LayoutDashboard, label: 'Overview'  },
+  { key: 'insights',   Icon: BarChart3,       label: 'Test analysis' },
   { key: 'topbottom',  Icon: Trophy,          label: 'Rankings'  },
   { key: 'students',   Icon: Users,           label: 'Students'  },
 ];
@@ -40,6 +43,7 @@ const STUDENT_NAV = [
   { key: 'profile',     Icon: User,          label: 'Profile'     },
   { key: 'performance', Icon: BarChart2,     label: 'Performance' },
   { key: 'marks',       Icon: ClipboardList, label: 'Records'     },
+  { key: 'analysis',    Icon: BarChart3,     label: 'Test analysis' },
 ];
 
 function centreDisplayName(code) {
@@ -102,7 +106,7 @@ export default function Layout() {
         </div>
 
         {/* Logged-in user info */}
-        <div style={{ padding: '10px 18px 8px', borderBottom: '1px solid rgba(255,255,255,.08)' }}>
+        <div className="sidebar-user-block">
           <div style={{ color: 'rgba(255,255,255,.45)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>
             Logged in as
           </div>
@@ -136,8 +140,8 @@ export default function Layout() {
           )}
         </nav>
 
-        {/* Logout */}
-        <div style={{ padding: '10px 16px', borderTop: '1px solid rgba(255,255,255,.08)' }}>
+        {/* Logout — pinned below scrollable nav */}
+        <div className="sidebar-logout">
           <button
             type="button"
             className="btn btn-ghost"

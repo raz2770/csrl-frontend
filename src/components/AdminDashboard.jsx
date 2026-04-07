@@ -5,7 +5,7 @@ import {
   ShieldCheck, Plus, Upload, Download, Package, Pencil, Trash2,
   Search, TrendingUp, TrendingDown, LayoutDashboard, BarChart2,
   Lightbulb, Loader2, CheckCircle2,
-  Eye,
+  Eye, BarChart3,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -13,6 +13,7 @@ import {
   fetchOverview,
   fetchRankings,
   fetchCentreLeaderboard,
+  fetchTestInsights,
   addStudentApi,
   updateStudentApi,
   deleteStudentApi,
@@ -25,6 +26,7 @@ import StudentProfileView from './StudentProfileView';
 import StudentFormModal from './StudentFormModal';
 import TestDataModal from './TestDataModal';
 import CentreLeaderboard from './CentreLeaderboard';
+import TestInsightsPanel from './TestInsightsPanel';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -39,6 +41,7 @@ const STUDENT_TEMPLATE_COLUMNS = [
 const TABS = [
   { key: 'leaderboard', Icon: Trophy,         label: 'Centre Leaderboard' },
   { key: 'overview',    Icon: LayoutDashboard, label: 'Dashboard'          },
+  { key: 'insights',    Icon: BarChart3,       label: 'Test analysis'     },
   { key: 'students',    Icon: Users,           label: 'Students'           },
   { key: 'marks',       Icon: FileText,        label: 'Test Marks'         },
   { key: 'import',      Icon: Upload,          label: 'Import / Export'    },
@@ -197,6 +200,10 @@ export default function AdminDashboard() {
   const [uploadTestKey, setUploadTestKey] = useState('');
   const fileRef = useRef(null);
 
+  const [testInsights, setTestInsights] = useState(null);
+  const [testInsightsLoading, setTestInsightsLoading] = useState(false);
+  const [testInsightsError, setTestInsightsError] = useState('');
+
   // ── Bootstrap ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -227,6 +234,26 @@ export default function AdminDashboard() {
       setCentreBoard(Array.isArray(board) ? board : []);
     });
   }, [selectedTestKey]);
+
+  useEffect(() => {
+    if (activePage !== 'insights' || !selectedTestKey) return undefined;
+    let cancelled = false;
+    setTestInsightsLoading(true);
+    setTestInsightsError('');
+    fetchTestInsights(null, selectedTestKey, null)
+      .then((d) => {
+        if (!cancelled) setTestInsights(d);
+      })
+      .catch((err) => {
+        if (!cancelled) setTestInsightsError(err.message || 'Failed to load test analysis');
+      })
+      .finally(() => {
+        if (!cancelled) setTestInsightsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activePage, selectedTestKey]);
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
@@ -703,7 +730,7 @@ export default function AdminDashboard() {
           <option value="NEET">NEET</option>
         </select>
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="table-wrap">
         <table className="table">
           <thead>
             <tr><th>Roll</th><th>Name</th><th>Centre</th><th>Stream</th><th>Category</th><th>Mobile</th><th>Class 10</th><th>Actions</th></tr>
@@ -781,7 +808,7 @@ export default function AdminDashboard() {
           {centersList.filter((c) => c !== 'ALL').map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="table-wrap">
         <table className="table">
           <thead>
             <tr>
@@ -829,6 +856,7 @@ export default function AdminDashboard() {
       <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <TrendingUp size={15} aria-hidden="true" />Top 30 — {selectedTestKey}
       </div>
+      <div className="table-wrap">
       <table className="table">
         <thead><tr><th>#</th><th>Student</th><th>Centre</th><th>Stream</th><th>Cat</th><th>Score</th></tr></thead>
         <tbody>
@@ -863,6 +891,7 @@ export default function AdminDashboard() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 
@@ -871,6 +900,7 @@ export default function AdminDashboard() {
       <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <TrendingDown size={15} aria-hidden="true" />Bottom 30 — {selectedTestKey}
       </div>
+      <div className="table-wrap">
       <table className="table">
         <thead><tr><th>Rank</th><th>Student</th><th>Centre</th><th>Score</th></tr></thead>
         <tbody>
@@ -895,6 +925,7 @@ export default function AdminDashboard() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 
@@ -1066,7 +1097,7 @@ export default function AdminDashboard() {
           <h1>CSRL Admin Dashboard</h1>
           <p>Super Admin · Full Control Panel</p>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="page-header-toolbar" style={{ marginLeft: 'auto' }}>
           <button type="button" className="btn btn-success btn-sm" onClick={() => { setModalStudent(null); setModalMode('add'); }}>
             <Plus size={13} /> Student
           </button>
@@ -1105,6 +1136,14 @@ export default function AdminDashboard() {
           {activePage === 'import'      && <ImportExportSection />}
           {activePage === 'top30'       && <Top30Section />}
           {activePage === 'bottom30'    && <Bottom30Section />}
+          {activePage === 'insights' && (
+            <TestInsightsPanel
+              insights={testInsights}
+              loading={testInsightsLoading}
+              error={testInsightsError}
+              testKey={selectedTestKey}
+            />
+          )}
         </div>
       </div>
     </div>

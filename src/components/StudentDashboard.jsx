@@ -1,21 +1,24 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { User, BarChart2, ClipboardList, AlertTriangle, Loader2 } from 'lucide-react';
+import { User, BarChart2, BarChart3, ClipboardList, AlertTriangle, Loader2 } from 'lucide-react';
 import {
   fetchStudentData,
   fetchStudentChart,
+  fetchTestInsights,
   buildStudentChartData,
   computeWeakSubject,
   getStreamConfig,
   getExamResult,
 } from '../services/dataService';
 import { useAuth } from '../context/AuthContext';
+import TestInsightsPanel from './TestInsightsPanel';
 
 const TABS = [
   { key: 'profile',     Icon: User,          label: 'Profile'     },
   { key: 'performance', Icon: BarChart2,      label: 'Performance' },
   { key: 'marks',       Icon: ClipboardList,  label: 'Records'     },
+  { key: 'analysis',    Icon: BarChart3,      label: 'Test analysis' },
 ];
 
 const SUBJECT_COLORS = ['#1a4fa0', '#e86b1f', '#1a8a4a', '#7c3aed', '#f5a623'];
@@ -31,6 +34,40 @@ export default function StudentDashboard() {
   const [data,      setData]      = useState(null);
   const [chart,     setChart]     = useState(null);  // { chartData, weakSubject }
   const [loading,   setLoading]   = useState(true);
+
+  const rankingTestColumns = useMemo(
+    () => (data?.testColumns || []).filter((c) => !String(c).includes('_')),
+    [data?.testColumns]
+  );
+  const [analysisTestKey, setAnalysisTestKey] = useState('');
+  const [testInsights, setTestInsights] = useState(null);
+  const [testInsightsLoading, setTestInsightsLoading] = useState(false);
+  const [testInsightsError, setTestInsightsError] = useState('');
+
+  useEffect(() => {
+    if (!rankingTestColumns.length) return;
+    setAnalysisTestKey((k) => k || rankingTestColumns[rankingTestColumns.length - 1]);
+  }, [rankingTestColumns]);
+
+  useEffect(() => {
+    if (activePage !== 'analysis' || !analysisTestKey || !auth.id) return undefined;
+    let cancelled = false;
+    setTestInsightsLoading(true);
+    setTestInsightsError('');
+    fetchTestInsights(null, analysisTestKey, auth.id)
+      .then((d) => {
+        if (!cancelled) setTestInsights(d);
+      })
+      .catch((err) => {
+        if (!cancelled) setTestInsightsError(err.message || 'Failed to load analysis');
+      })
+      .finally(() => {
+        if (!cancelled) setTestInsightsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activePage, analysisTestKey, auth.id]);
 
   useEffect(() => {
     const load = async () => {
@@ -203,7 +240,7 @@ export default function StudentDashboard() {
   const MarksTab = () => (
     <div className="card">
       <div className="section-title">Test Records</div>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="table-wrap">
         <table className="table">
           <thead>
             <tr>
@@ -246,6 +283,19 @@ export default function StudentDashboard() {
     </div>
   );
 
+  const AnalysisTab = () => (
+    <TestInsightsPanel
+      insights={testInsights}
+      loading={testInsightsLoading}
+      error={testInsightsError}
+      highlightCenter={profile.centerCode}
+      testKey={analysisTestKey}
+      testOptions={rankingTestColumns}
+      onTestKeyChange={setAnalysisTestKey}
+      showStudentCard
+    />
+  );
+
   return (
     <div className="fade-in dashboard-page">
       <div className="page-header">
@@ -261,7 +311,7 @@ export default function StudentDashboard() {
             </span>
           </p>
         </div>
-        <div style={{ marginLeft: 'auto', background: 'rgba(255,255,255,.12)', padding: '8px 16px', borderRadius: 8, textAlign: 'center' }}>
+        <div className="page-header-toolbar" style={{ marginLeft: 'auto', background: 'rgba(255,255,255,.12)', padding: '8px 16px', borderRadius: 8, textAlign: 'center' }}>
           <div style={{ fontSize: 22, fontWeight: 800 }}>{latestTotal ?? '—'}</div>
           <div style={{ fontSize: 11, opacity: 0.8 }}>Latest / {streamCfg.maxTotal}</div>
         </div>
@@ -288,6 +338,7 @@ export default function StudentDashboard() {
           {activePage === 'profile'     && <ProfileTab />}
           {activePage === 'performance' && <PerformanceTab />}
           {activePage === 'marks'       && <MarksTab />}
+          {activePage === 'analysis'    && <AnalysisTab />}
         </div>
       </div>
     </div>
