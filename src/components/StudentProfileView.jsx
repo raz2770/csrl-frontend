@@ -13,6 +13,8 @@ function InfoRow({ label, value }) {
 
 export default function StudentProfileView({ profile, studentTests, testColumns }) {
   const stream = profile?.stream || 'JEE';
+  const school10 = profile?.['10th SCHOOL NAME'] || profile?.['10th SCHOOL'] || profile?.['SCHOOL NAME'] || profile?.SCHOOL || '';
+  const school12 = profile?.['12th SCHOOL NAME'] || profile?.['12th SCHOOL'] || school10 || '';
 
   const { mappedTestList, weakSubject, chartData, subjects } = useMemo(() => {
     const testsMap      = {};
@@ -134,13 +136,13 @@ export default function StudentProfileView({ profile, studentTests, testColumns 
           <div className="section-title">🎓 Education History</div>
           <div style={{ background: 'var(--gray-50)', borderRadius: 8, padding: '12px', marginBottom: 10 }}>
             <div style={{ fontWeight: 700, color: 'var(--csrl-blue)', fontSize: 13, marginBottom: 8 }}>10th Standard</div>
-            <InfoRow label="School"     value={profile['10th SCHOOL NAME']} />
+            <InfoRow label="School"     value={school10} />
             <InfoRow label="Board"      value={profile['10th BOARD']} />
             <InfoRow label="Percentage" value={profile['10th Precentage']} />
           </div>
           <div style={{ background: 'var(--gray-50)', borderRadius: 8, padding: '12px' }}>
             <div style={{ fontWeight: 700, color: 'var(--csrl-blue)', fontSize: 13, marginBottom: 8 }}>12th Standard</div>
-            <InfoRow label="School"     value={profile['12th SCHOOL NAME']} />
+            <InfoRow label="School"     value={school12} />
             <InfoRow label="Board"      value={profile['12th BOARD']} />
             <InfoRow label="Percentage" value={profile['12th Precentage']} />
           </div>
@@ -159,17 +161,9 @@ export default function StudentProfileView({ profile, studentTests, testColumns 
           </div>
           <div className="divider" style={{ margin: '4px 0' }} />
           <div className="section-title" style={{ marginBottom: 6 }}>🧠 Weak Subject Analysis</div>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, background: 'var(--red-bg)', borderRadius: 8, padding: '12px' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase', marginBottom: 4 }}>Manual Assessment</div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--red)' }}>
-                {profile['WEAK SUBJECT (MANUAL)'] || profile['WEAK SUBJECT'] || 'Not specified'}
-              </div>
-            </div>
-            <div style={{ flex: 1, background: 'var(--gray-50)', borderRadius: 8, padding: '12px', border: '1px solid var(--gray-200)' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-600)', textTransform: 'uppercase', marginBottom: 4 }}>Auto Detected</div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--gray-800)' }}>{weakSubject}</div>
-            </div>
+          <div style={{ background: 'var(--gray-50)', borderRadius: 8, padding: '12px', border: '1px solid var(--gray-200)' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-600)', textTransform: 'uppercase', marginBottom: 4 }}>From Test Performance</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--gray-800)' }}>{weakSubject}</div>
           </div>
         </div>
 

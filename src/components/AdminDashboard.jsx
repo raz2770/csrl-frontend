@@ -20,6 +20,7 @@ import {
   upsertTestScoresApi,
   parseTestColumn,
   getJeePercentile,
+  getStreamConfig,
 } from '../services/dataService';
 import { useToast } from '../context/ToastContext';
 import StudentProfileView from './StudentProfileView';
@@ -819,7 +820,7 @@ export default function AdminDashboard() {
           </thead>
           <tbody>
             {filteredFlatMarks.map((m) => {
-              const maxTotal = m.stream === 'NEET' ? 720 : 360;
+              const maxTotal = getStreamConfig(m.stream).maxTotal;
               const pct      = m.total ? Math.round((m.total / maxTotal) * 100) : 0;
               return (
                 <tr key={`${m.roll}-${m.test}`}>
