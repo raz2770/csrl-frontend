@@ -89,11 +89,14 @@ export default function TestInsightsPanel({
         <p style={{ marginTop: 8, marginBottom: 0 }}>
           {insights.note}
         </p>
-        {cut && (
+        {cut?.JEE && cut?.NEET && (
           <p style={{ marginTop: 8, marginBottom: 0 }}>
-            Default qualification: total ≥ <strong>{cut.overallMin}</strong> / {cut.maxTotal} (
-            {Math.round(cut.overallQualifyRatio * 100)}%), each subject ≥ <strong>{cut.subjectMin}</strong> / {cut.maxPerSubject} (
-            {Math.round(cut.subjectQualifyRatio * 100)}%).
+            Default qualification — <strong>JEE</strong>: total ≥ {cut.JEE.overallMin} / {cut.JEE.maxTotal} (
+            {Math.round(cut.overallQualifyRatio * 100)}%); per subject vs max (Physics {cut.JEE.maxBySubject.Physics}, Chemistry{' '}
+            {cut.JEE.maxBySubject.Chemistry}, Math {cut.JEE.maxBySubject.Math}) with floor from {Math.round(cut.subjectQualifyRatio * 100)}% of each.
+            <br />
+            <strong>NEET</strong>: total ≥ {cut.NEET.overallMin} / {cut.NEET.maxTotal}; Biology max {cut.NEET.maxBySubject.Biology}, others{' '}
+            {cut.NEET.maxBySubject.Physics} / {cut.NEET.maxBySubject.Chemistry}.
           </p>
         )}
       </div>
@@ -171,7 +174,7 @@ export default function TestInsightsPanel({
               <div style={{ marginTop: 10, fontSize: 22, fontWeight: 800, color: '#1a6e3b' }}>
                 {insights.bestScorePercentStudent.scorePercent}%
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-400)', marginLeft: 8 }}>
-                  ({insights.bestScorePercentStudent.total} / 180)
+                  ({insights.bestScorePercentStudent.total} / {insights.bestScorePercentStudent.maxTotal ?? '—'})
                 </span>
               </div>
             </div>
@@ -363,7 +366,7 @@ export default function TestInsightsPanel({
       <div className="card">
         <div className="section-title">Below subject cutoff — count by centre</div>
         <p style={{ fontSize: 12, color: 'var(--gray-600)', marginBottom: 12 }}>
-          Students with a subject mark below {cut?.subjectMin ?? '—'} (among those with a score in that subject).
+          Students with a subject mark below their stream&apos;s cutoff ({Math.round((cut?.subjectQualifyRatio ?? 0.35) * 100)}% of that subject&apos;s max — JEE vs NEET differ).
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
           {subjects.map((sub) => (

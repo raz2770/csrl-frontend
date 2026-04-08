@@ -10,6 +10,7 @@ import {
   computeWeakSubject,
   getStreamConfig,
   getExamResult,
+  getMaxMarksForSubject,
 } from '../services/dataService';
 import { useAuth } from '../context/AuthContext';
 import TestInsightsPanel from './TestInsightsPanel';
@@ -100,6 +101,7 @@ export default function StudentDashboard() {
     [chart, studentTests, testColumns]
   );
 
+  // Detected from test performance only — never profile manual fields
   const weakSubject = useMemo(
     () => chart?.weakSubject ?? computeWeakSubject(studentTests, testColumns),
     [chart, studentTests, testColumns]
@@ -164,7 +166,7 @@ export default function StudentDashboard() {
       <div className="card">
         <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <AlertTriangle size={14} color="var(--red)" aria-hidden="true" />
-          Weak Subject Analysis
+          Weak subject (from your tests)
         </div>
         <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--red)', marginBottom: 14 }}>{weakSubject}</div>
         {streamCfg.subjects.map((sub) => {
@@ -173,7 +175,7 @@ export default function StudentDashboard() {
             : 0;
           const isWeak    = sub === weakSubject;
           const fillColor = isWeak ? '#e74c3c' : subjectColor(sub);
-          const maxMark   = streamCfg.maxPerSubject;
+          const maxMark   = getMaxMarksForSubject(streamCfg, sub);
           return (
             <div key={sub} style={{ marginBottom: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
@@ -266,7 +268,7 @@ export default function StudentDashboard() {
                   <td><strong>{row.name}</strong></td>
                   {subScores.map((v, i) => (
                     <td key={i} style={{ color: v === '—' ? 'var(--gray-300)' : 'inherit' }}>
-                      {v !== '—' ? `${v}/${streamCfg.maxPerSubject}` : '—'}
+                      {v !== '—' ? `${v}/${getMaxMarksForSubject(streamCfg, streamCfg.subjects[i])}` : '—'}
                     </td>
                   ))}
                   <td><strong style={{ color: '#1a4fa0' }}>{total ?? '—'}/{maxTot}</strong></td>

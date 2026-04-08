@@ -819,7 +819,7 @@ export default function AdminDashboard() {
           </thead>
           <tbody>
             {filteredFlatMarks.map((m) => {
-              const maxTotal = m.stream === 'NEET' ? 180 : 180; // both 180 for coaching tests
+              const maxTotal = m.stream === 'NEET' ? 720 : 360;
               const pct      = m.total ? Math.round((m.total / maxTotal) * 100) : 0;
               return (
                 <tr key={`${m.roll}-${m.test}`}>
