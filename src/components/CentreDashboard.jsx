@@ -32,6 +32,7 @@ export default function CentreDashboard() {
   const [overview,         setOverview]         = useState(null);
   const [topRanked,        setTopRanked]        = useState([]);
   const [bottomRanked,     setBottomRanked]     = useState([]);
+  const [allRanked,        setAllRanked]        = useState([]);
   const [subjectAvgs,      setSubjectAvgs]      = useState([]);
   const [loading,          setLoading]          = useState(true);
   const [error,            setError]            = useState('');
@@ -90,13 +91,15 @@ export default function CentreDashboard() {
   useEffect(() => {
     if (!selectedTestKey) return;
     Promise.all([
-      fetchRankings(null, { testKey: selectedTestKey, centerCode: auth.centerCode, limit: 10, order: 'desc' }).catch(() => ({ ranked: [] })),
-      fetchRankings(null, { testKey: selectedTestKey, centerCode: auth.centerCode, limit: 10, order: 'asc'  }).catch(() => ({ ranked: [] })),
-    ]).then(([top, bottom]) => {
+      fetchRankings(null, { testKey: selectedTestKey, centerCode: auth.centerCode, limit: 30, order: 'desc' }).catch(() => ({ ranked: [] })),
+      fetchRankings(null, { testKey: selectedTestKey, centerCode: auth.centerCode, limit: 30, order: 'asc'  }).catch(() => ({ ranked: [] })),
+      fetchRankings(null, { testKey: selectedTestKey, centerCode: auth.centerCode, limit: Math.max(1000, data?.profiles?.length || 0), order: 'desc' }).catch(() => ({ ranked: [] })),
+    ]).then(([top, bottom, all]) => {
       setTopRanked(top.ranked    || []);
       setBottomRanked(bottom.ranked || []);
+      setAllRanked(all.ranked || []);
     });
-  }, [selectedTestKey, auth.centerCode]);
+  }, [selectedTestKey, auth.centerCode, data?.profiles?.length]);
 
   useEffect(() => {
     if (activePage !== 'insights' || !selectedTestKey) return undefined;
@@ -260,11 +263,12 @@ export default function CentreDashboard() {
   };
 
   const RankingsPair = () => (
-    <div className="grid-2">
-      <div className="card">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="grid-2">
+        <div className="card">
         <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <TrendingUp size={14} aria-hidden="true" />
-          Top 10 — {selectedTestKey}
+          Top 30 — {selectedTestKey}
         </div>
         <div className="table-wrap">
         <table className="table">
@@ -298,10 +302,10 @@ export default function CentreDashboard() {
         </div>
       </div>
 
-      <div className="card">
+        <div className="card">
         <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <AlertTriangle size={14} color="var(--red)" aria-hidden="true" />
-          Bottom 10 — {selectedTestKey}
+          Bottom 30 — {selectedTestKey}
         </div>
         <div className="table-wrap">
         <table className="table">
@@ -324,6 +328,41 @@ export default function CentreDashboard() {
             )}
           </tbody>
         </table>
+        </div>
+      </div>
+      </div>
+
+      <div className="card">
+        <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Trophy size={14} aria-hidden="true" />
+          All students rankwise — {selectedTestKey}
+        </div>
+        <div className="table-wrap" style={{ maxHeight: 440, overflowY: 'auto' }}>
+          <table className="table">
+            <thead><tr><th>Rank</th><th>Student</th><th>Stream</th><th>Total</th></tr></thead>
+            <tbody>
+              {allRanked.map((s) => (
+                <tr key={`all-${s.roll}`} style={{ cursor: 'pointer' }} onClick={() => setViewingStudentId(s.roll)}>
+                  <td><strong>#{s.rank}</strong></td>
+                  <td>
+                    <div className="student-row">
+                      <div className="avatar">{getInitials(s.name)}</div>
+                      <span style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 3, background: s.stream === 'NEET' ? '#e6f5ed' : '#e8f0fc', color: s.stream === 'NEET' ? '#1a6e3b' : '#1a4fa0', fontWeight: 600 }}>
+                      {s.stream || 'JEE'}
+                    </span>
+                  </td>
+                  <td><strong style={{ color: '#1a4fa0' }}>{s.marks}</strong></td>
+                </tr>
+              ))}
+              {!allRanked.length && (
+                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: 20 }}>No data for {selectedTestKey}</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

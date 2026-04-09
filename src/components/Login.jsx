@@ -81,11 +81,8 @@ export default function Login() {
             <img src="/logo.png" alt="CSRL logo" style={{ width: 68, height: 68, objectFit: 'cover', borderRadius: '50%' }} />
           </div>
           <p style={{ color: '#f5a623', fontSize: 21, fontWeight: 800, letterSpacing: 0.5, margin: 0 }}>CSRL</p>
-          <p style={{ color: 'rgba(255,255,255,.8)', fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', margin: '4px 0 0' }}>
-            Centre for Social Responsibility &amp; Leadership
-          </p>
           <p style={{ color: 'rgba(255,255,255,.6)', fontSize: 13, margin: '6px 0 0' }}>
-            Super 30 — Student Management System
+            Student Management System
           </p>
         </div>
 
@@ -127,7 +124,6 @@ export default function Login() {
               <input
                 id="roll"
                 className="input"
-                placeholder="e.g. KNP001"
                 autoFocus
                 value={roll}
                 onChange={(e) => setRoll(e.target.value)}
@@ -229,7 +225,7 @@ export default function Login() {
             paddingTop: 12,
           }}>
             Developed by <strong style={{ color: '#1a4fa0' }}>Ajaya Kumar</strong> — Trainee Faculty, CSRL
-            <div style={{ marginTop: 3, fontSize: 11 }}>OIL India Super 30 · 2024–25</div>
+            <div style={{ marginTop: 3, fontSize: 11 }}>OIL India · 2024–25</div>
           </div>
         </div>
       </div>

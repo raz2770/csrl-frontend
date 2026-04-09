@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { User, BarChart2, BarChart3, ClipboardList, AlertTriangle, Loader2 } from 'lucide-react';
+import { User, BarChart2, BarChart3, AlertTriangle, Loader2 } from 'lucide-react';
 import {
   fetchStudentData,
   fetchStudentChart,
@@ -17,8 +17,7 @@ import TestInsightsPanel from './TestInsightsPanel';
 
 const TABS = [
   { key: 'profile',     Icon: User,          label: 'Profile'     },
-  { key: 'performance', Icon: BarChart2,      label: 'Performance' },
-  { key: 'marks',       Icon: ClipboardList,  label: 'Records'     },
+  { key: 'performance', Icon: BarChart2,      label: 'Performance & Records' },
   { key: 'analysis',    Icon: BarChart3,      label: 'Test analysis' },
 ];
 
@@ -211,97 +210,100 @@ export default function StudentDashboard() {
   );
 
   const PerformanceTab = () => (
-    <div className="card">
-      <div className="section-title">Subject-wise Trend</div>
-      {chartData.length > 0 ? (
-        <>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-            {subjects.map((sub, i) => {
-              const latest = chartData[chartData.length - 1]?.[sub];
-              const maxSub = getMaxMarksForSubject(streamCfg, sub);
-              return (
-                <span
-                  key={sub}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    background: '#f8fafc',
-                    border: '1px solid var(--gray-100)',
-                    borderRadius: 999,
-                    padding: '4px 10px',
-                    fontSize: 12,
-                    color: 'var(--gray-700)',
-                    fontWeight: 600,
-                  }}
-                >
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: SUBJECT_COLORS[i % SUBJECT_COLORS.length] }} />
-                  {sub}: {latest ?? '—'}/{maxSub}
-                </span>
-              );
-            })}
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                background: '#eff6ff',
-                border: '1px solid #bfdbfe',
-                borderRadius: 999,
-                padding: '4px 10px',
-                fontSize: 12,
-                color: '#1a4fa0',
-                fontWeight: 700,
-              }}
-            >
-              <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#1a4fa0' }} />
-              Total: {chartData[chartData.length - 1]?.Total ?? '—'}/{streamCfg.maxTotal}
-            </span>
-          </div>
-
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData} margin={{ top: 10, right: 18, left: -10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--gray-100)" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--gray-600)' }} />
-              <YAxis yAxisId="subject" tick={{ fontSize: 11, fill: 'var(--gray-400)' }} />
-              <YAxis yAxisId="total" orientation="right" tick={{ fontSize: 11, fill: '#1a4fa0' }} />
-              <Tooltip
-                formatter={(value, name) => {
-                  if (name === 'Total') return [value ?? '—', `Total / ${streamCfg.maxTotal}`];
-                  return [value ?? '—', `${name} / ${getMaxMarksForSubject(streamCfg, name)}`];
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="card">
+        <div className="section-title">Subject-wise Trend</div>
+        {chartData.length > 0 ? (
+          <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {subjects.map((sub, i) => {
+                const latest = chartData[chartData.length - 1]?.[sub];
+                const maxSub = getMaxMarksForSubject(streamCfg, sub);
+                return (
+                  <span
+                    key={sub}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      background: '#f8fafc',
+                      border: '1px solid var(--gray-100)',
+                      borderRadius: 999,
+                      padding: '4px 10px',
+                      fontSize: 12,
+                      color: 'var(--gray-700)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: SUBJECT_COLORS[i % SUBJECT_COLORS.length] }} />
+                    {sub}: {latest ?? '—'}/{maxSub}
+                  </span>
+                );
+              })}
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: 999,
+                  padding: '4px 10px',
+                  fontSize: 12,
+                  color: '#1a4fa0',
+                  fontWeight: 700,
                 }}
-                contentStyle={{ background: '#fff', border: '1px solid var(--gray-100)', borderRadius: 8, fontSize: 12 }}
-              />
-              <Legend wrapperStyle={{ fontSize: 13 }} />
-              {subjects.map((sub, i) => (
+              >
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#1a4fa0' }} />
+                Total: {chartData[chartData.length - 1]?.Total ?? '—'}/{streamCfg.maxTotal}
+              </span>
+            </div>
+
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData} margin={{ top: 10, right: 18, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--gray-100)" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--gray-600)' }} />
+                <YAxis yAxisId="subject" tick={{ fontSize: 11, fill: 'var(--gray-400)' }} />
+                <YAxis yAxisId="total" orientation="right" tick={{ fontSize: 11, fill: '#1a4fa0' }} />
+                <Tooltip
+                  formatter={(value, name) => {
+                    if (name === 'Total') return [value ?? '—', `Total / ${streamCfg.maxTotal}`];
+                    return [value ?? '—', `${name} / ${getMaxMarksForSubject(streamCfg, name)}`];
+                  }}
+                  contentStyle={{ background: '#fff', border: '1px solid var(--gray-100)', borderRadius: 8, fontSize: 12 }}
+                />
+                <Legend wrapperStyle={{ fontSize: 13 }} />
+                {subjects.map((sub, i) => (
+                  <Line
+                    key={sub}
+                    yAxisId="subject"
+                    type="monotone"
+                    dataKey={sub}
+                    stroke={SUBJECT_COLORS[i % SUBJECT_COLORS.length]}
+                    strokeWidth={2.3}
+                    dot={{ r: 3.5, strokeWidth: 1, fill: '#fff' }}
+                    activeDot={{ r: 5 }}
+                    connectNulls
+                  />
+                ))}
                 <Line
-                  key={sub}
-                  yAxisId="subject"
+                  yAxisId="total"
                   type="monotone"
-                  dataKey={sub}
-                  stroke={SUBJECT_COLORS[i % SUBJECT_COLORS.length]}
-                  strokeWidth={2.3}
-                  dot={{ r: 3.5, strokeWidth: 1, fill: '#fff' }}
-                  activeDot={{ r: 5 }}
+                  dataKey="Total"
+                  stroke="#1a4fa0"
+                  strokeWidth={3}
+                  dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
+                  activeDot={{ r: 6 }}
                   connectNulls
                 />
-              ))}
-              <Line
-                yAxisId="total"
-                type="monotone"
-                dataKey="Total"
-                stroke="#1a4fa0"
-                strokeWidth={3}
-                dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
-                activeDot={{ r: 6 }}
-                connectNulls
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </>
-      ) : (
-        <p style={{ color: 'var(--gray-400)', textAlign: 'center', padding: 32 }}>No test data available yet.</p>
-      )}
+              </LineChart>
+            </ResponsiveContainer>
+          </>
+        ) : (
+          <p style={{ color: 'var(--gray-400)', textAlign: 'center', padding: 32 }}>No test data available yet.</p>
+        )}
+      </div>
+      <MarksTab />
     </div>
   );
 
@@ -361,6 +363,7 @@ export default function StudentDashboard() {
       testOptions={rankingTestColumns}
       onTestKeyChange={setAnalysisTestKey}
       showStudentCard
+      hideSubjectAverages
     />
   );
 
@@ -405,7 +408,6 @@ export default function StudentDashboard() {
         <div className="dashboard-scroll">
           {activePage === 'profile'     && <ProfileTab />}
           {activePage === 'performance' && <PerformanceTab />}
-          {activePage === 'marks'       && <MarksTab />}
           {activePage === 'analysis'    && <AnalysisTab />}
         </div>
       </div>

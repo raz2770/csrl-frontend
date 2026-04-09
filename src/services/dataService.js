@@ -163,6 +163,8 @@ export async function fetchGlobalData() {
  * The _token / centreCode args are accepted for backward compat but ignored.
  */
 export async function fetchCenterDataApi(_token, _centreCode) {
+  void _token;
+  void _centreCode;
   return apiFetch('/api/data/center');
 }
 
@@ -171,6 +173,8 @@ export async function fetchCenterDataApi(_token, _centreCode) {
  * The _token / _rollKey args are accepted for backward compat but ignored.
  */
 export async function fetchStudentData(_token, _rollKey) {
+  void _token;
+  void _rollKey;
   return apiFetch('/api/data/student');
 }
 
@@ -293,12 +297,14 @@ export function buildStudentChartData(studentTests, testColumns) {
       if (!isTotal) testsMap[testName][subject] = null;
     }
 
-    if (!isTotal && testsMap[testName].Total === undefined) {
-      const vals = Object.entries(testsMap[testName]).filter(
-        ([k, v]) => k !== 'name' && k !== 'Total' && typeof v === 'number'
-      );
-      testsMap[testName].Total = vals.length ? vals.reduce((s, [, v]) => s + v, 0) : null;
-    }
+  });
+
+  Object.values(testsMap).forEach((testRow) => {
+    if (testRow.Total !== undefined && testRow.Total !== null) return;
+    const vals = Object.entries(testRow).filter(
+      ([k, v]) => k !== 'name' && k !== 'Total' && typeof v === 'number'
+    );
+    testRow.Total = vals.length ? vals.reduce((s, [, v]) => s + v, 0) : null;
   });
 
   return Object.values(testsMap).sort((a, b) =>

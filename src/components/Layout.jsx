@@ -13,7 +13,6 @@ import {
   User,
   BarChart2,
   BarChart3,
-  ClipboardList,
   LogOut,
 } from 'lucide-react';
 
@@ -41,8 +40,7 @@ const CENTRE_NAV = [
 
 const STUDENT_NAV = [
   { key: 'profile',     Icon: User,          label: 'Profile'     },
-  { key: 'performance', Icon: BarChart2,     label: 'Performance' },
-  { key: 'marks',       Icon: ClipboardList, label: 'Records'     },
+  { key: 'performance', Icon: BarChart2,     label: 'Performance & Records' },
   { key: 'analysis',    Icon: BarChart3,     label: 'Test analysis' },
 ];
 
@@ -101,7 +99,6 @@ export default function Layout() {
           <img src="/logo.png" alt="CSRL logo" style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: '50%' }} />
           <div>
             <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>CSRL</div>
-            <div style={{ color: 'rgba(255,255,255,.5)', fontSize: 10 }}>Super 30</div>
           </div>
         </div>
 

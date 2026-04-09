@@ -1,4 +1,5 @@
-import { Loader2, Trophy, Target, BarChart3, TrendingDown, Users, AlertCircle } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Loader2, Trophy, BarChart3, TrendingDown, Users, AlertCircle } from 'lucide-react';
 import { CENTERS } from '../config/centers';
 
 function centreLabel(code) {
@@ -17,6 +18,7 @@ export default function TestInsightsPanel({
   testOptions,
   onTestKeyChange,
   showStudentCard,
+  hideSubjectAverages = false,
 }) {
   if (loading) {
     return (
@@ -46,6 +48,33 @@ export default function TestInsightsPanel({
 
   const subjects = insights.subjects || [];
   const cut = insights.cutoffs;
+  const rankedStudents = insights.rankedStudents || [];
+
+  const [rankMode, setRankMode] = useState('all');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [selectedCenter, setSelectedCenter] = useState('ALL');
+
+  const centerOptions = useMemo(
+    () => [...new Set(rankedStudents.map((r) => r.center).filter(Boolean))].sort(),
+    [rankedStudents]
+  );
+
+  const filteredRanked = useMemo(() => {
+    const centerFiltered = selectedCenter === 'ALL'
+      ? rankedStudents
+      : rankedStudents.filter((r) => r.center === selectedCenter);
+
+    const highToLow = [...centerFiltered].sort((a, b) => (b.marks - a.marks) || a.rank - b.rank);
+    const lowToHigh = [...centerFiltered].sort((a, b) => (a.marks - b.marks) || a.rank - b.rank);
+
+    let selected = highToLow;
+    if (rankMode === 'top10') selected = highToLow.slice(0, 10);
+    if (rankMode === 'bottom10') selected = lowToHigh.slice(0, 10);
+
+    return sortOrder === 'asc'
+      ? [...selected].sort((a, b) => (a.marks - b.marks) || a.rank - b.rank)
+      : [...selected].sort((a, b) => (b.marks - a.marks) || a.rank - b.rank);
+  }, [rankedStudents, selectedCenter, sortOrder, rankMode]);
 
   const rowHighlight = (code) =>
     highlightCenter && code === highlightCenter
@@ -139,52 +168,41 @@ export default function TestInsightsPanel({
         </div>
       )}
 
-      <div className="grid-2">
-        <div className="card">
-          <div className="section-title" style={{ marginBottom: 12 }}>
-            <Trophy size={16} color="#d97706" aria-hidden="true" />
-            Highest total
-          </div>
-          {insights.overallTopper ? (
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--gray-800)' }}>{insights.overallTopper.name}</div>
-              <div style={{ fontSize: 13, color: 'var(--gray-600)', marginTop: 4 }}>
-                {insights.overallTopper.roll} · {centreLabel(insights.overallTopper.center)}
-              </div>
-              <div style={{ marginTop: 10, fontSize: 22, fontWeight: 800, color: '#1a4fa0' }}>
-                {insights.overallTopper.total} <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-400)' }}>marks</span>
-              </div>
-            </div>
-          ) : (
-            <div style={{ color: 'var(--gray-400)' }}>No scores for this test.</div>
-          )}
+      <div className="card">
+        <div className="section-title" style={{ marginBottom: 12 }}>
+          <Trophy size={16} color="#d97706" aria-hidden="true" />
+          Top student (total and score %)
         </div>
-
-        <div className="card">
-          <div className="section-title" style={{ marginBottom: 12 }}>
-            <Target size={16} color="#1a6e3b" aria-hidden="true" />
-            Best score % (total / max)
-          </div>
-          {insights.bestScorePercentStudent ? (
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--gray-800)' }}>{insights.bestScorePercentStudent.name}</div>
-              <div style={{ fontSize: 13, color: 'var(--gray-600)', marginTop: 4 }}>
-                {insights.bestScorePercentStudent.roll} · {centreLabel(insights.bestScorePercentStudent.center)}
-              </div>
-              <div style={{ marginTop: 10, fontSize: 22, fontWeight: 800, color: '#1a6e3b' }}>
-                {insights.bestScorePercentStudent.scorePercent}%
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-400)', marginLeft: 8 }}>
-                  ({insights.bestScorePercentStudent.total} / {insights.bestScorePercentStudent.maxTotal ?? '—'})
-                </span>
-              </div>
+        {(insights.overallTopper || insights.bestScorePercentStudent) ? (
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--gray-800)' }}>
+              {insights.overallTopper?.name || insights.bestScorePercentStudent?.name}
             </div>
-          ) : (
-            <div style={{ color: 'var(--gray-400)' }}>No scores for this test.</div>
-          )}
-        </div>
+            <div style={{ fontSize: 13, color: 'var(--gray-600)', marginTop: 4 }}>
+              {(insights.overallTopper?.roll || insights.bestScorePercentStudent?.roll)} · {centreLabel(insights.overallTopper?.center || insights.bestScorePercentStudent?.center)}
+            </div>
+            <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#1a4fa0' }}>
+                {insights.overallTopper?.total ?? insights.bestScorePercentStudent?.total ?? '—'}
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-400)', marginLeft: 6 }}>marks</span>
+              </div>
+              {insights.bestScorePercentStudent && (
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#1a6e3b' }}>
+                  {insights.bestScorePercentStudent.scorePercent}%
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-400)', marginLeft: 6 }}>
+                    ({insights.bestScorePercentStudent.total} / {insights.bestScorePercentStudent.maxTotal ?? '—'})
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div style={{ color: 'var(--gray-400)' }}>No scores for this test.</div>
+        )}
       </div>
 
-      <div className="card">
+      {!hideSubjectAverages && (
+        <div className="card">
         <div className="section-title">
           <BarChart3 size={16} aria-hidden="true" />
           Subject averages (global) — lowest score % first
@@ -201,7 +219,6 @@ export default function TestInsightsPanel({
                 <span style={{ fontWeight: 600 }}>{s.subject}</span>
                 <span>
                   Avg {s.avgMarks} · {s.scorePercentOfMax}% of max
-                  <span style={{ color: 'var(--gray-400)', marginLeft: 6 }}>(n={s.studentCount})</span>
                 </span>
               </div>
               <div className="progress-bar">
@@ -213,11 +230,44 @@ export default function TestInsightsPanel({
             </div>
           ))}
         </div>
-      </div>
+        </div>
+      )}
 
       <div className="card">
-        <div className="section-title">Top 10 — by total marks</div>
-        <div className="table-wrap">
+        <div className="section-title">Student ranking explorer — {insights.testKey}</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+          <select
+            className="input select"
+            value={rankMode}
+            onChange={(e) => setRankMode(e.target.value)}
+            style={{ maxWidth: 200 }}
+          >
+            <option value="all">All students</option>
+            <option value="top10">Top 10 students</option>
+            <option value="bottom10">Lowest 10 students</option>
+          </select>
+          <select
+            className="input select"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            style={{ maxWidth: 200 }}
+          >
+            <option value="desc">Sort: Highest first</option>
+            <option value="asc">Sort: Lowest first</option>
+          </select>
+          <select
+            className="input select"
+            value={selectedCenter}
+            onChange={(e) => setSelectedCenter(e.target.value)}
+            style={{ maxWidth: 220 }}
+          >
+            <option value="ALL">All centres</option>
+            {centerOptions.map((c) => (
+              <option key={c} value={c}>{centreLabel(c)}</option>
+            ))}
+          </select>
+        </div>
+        <div className="table-wrap" style={{ maxHeight: 420, overflowY: 'auto' }}>
           <table className="table">
             <thead>
               <tr>
@@ -228,7 +278,7 @@ export default function TestInsightsPanel({
               </tr>
             </thead>
             <tbody>
-              {(insights.top10 || []).map((r) => (
+              {filteredRanked.map((r) => (
                 <tr key={r.roll}>
                   <td><strong>{r.rank}</strong></td>
                   <td>
@@ -239,7 +289,7 @@ export default function TestInsightsPanel({
                   <td><strong style={{ color: '#1a4fa0' }}>{r.marks}</strong></td>
                 </tr>
               ))}
-              {!(insights.top10 || []).length && (
+              {!filteredRanked.length && (
                 <tr>
                   <td colSpan={4} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: 20 }}>
                     No data
@@ -248,14 +298,6 @@ export default function TestInsightsPanel({
               )}
             </tbody>
           </table>
-        </div>
-        <div style={{ marginTop: 12, fontSize: 13, color: 'var(--gray-600)' }}>
-          <strong>Top 10 by centre:</strong>{' '}
-          {Object.keys(insights.top10CentreCounts || {}).length === 0
-            ? '—'
-            : Object.entries(insights.top10CentreCounts)
-                .map(([c, n]) => `${centreLabel(c)} (${n})`)
-                .join(', ')}
         </div>
       </div>
 
