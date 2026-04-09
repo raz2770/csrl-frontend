@@ -15,8 +15,8 @@ import TestInsightsPanel from './TestInsightsPanel';
 
 const TABS = [
   { key: 'overview',  Icon: LayoutDashboard, label: 'Overview'  },
-  { key: 'insights',  Icon: BarChart3,       label: 'Test analysis' },
   { key: 'topbottom', Icon: Trophy,          label: 'Rankings'  },
+  { key: 'insights',  Icon: BarChart3,       label: 'Test analysis' },
   { key: 'students',  Icon: Users,           label: 'Students'  },
 ];
 
@@ -57,9 +57,11 @@ export default function CentreDashboard() {
         setData(d);
         setOverview(ov);
 
-        // Select last total-column (no underscore) as default test key
-        const rankingCols = (d.testColumns || []).filter((c) => !String(c).includes('_'));
-        const candidate   = rankingCols.length ? rankingCols[rankingCols.length - 1] : d.testColumns?.[0];
+        // Select first total-column from descending-sorted list as default test key
+        const rankingCols = (d.testColumns || [])
+          .filter((c) => !String(c).includes('_'))
+          .sort((a, b) => String(b).localeCompare(String(a), undefined, { numeric: true, sensitivity: 'base' }));
+        const candidate   = rankingCols.length ? rankingCols[0] : d.testColumns?.[0];
         if (candidate) setSelectedTestKey(candidate);
       } catch (err) {
         setError('Failed to load: ' + err.message);
@@ -122,7 +124,9 @@ export default function CentreDashboard() {
   }, [activePage, selectedTestKey]);
 
   const rankingTestColumns = useMemo(
-    () => (data?.testColumns || []).filter((c) => !String(c).includes('_')),
+    () => (data?.testColumns || [])
+      .filter((c) => !String(c).includes('_'))
+      .sort((a, b) => String(b).localeCompare(String(a), undefined, { numeric: true, sensitivity: 'base' })),
     [data]
   );
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { User, BarChart2, BarChart3, AlertTriangle, Loader2 } from 'lucide-react';
 import {
   fetchStudentData,
@@ -11,6 +11,7 @@ import {
   getStreamConfig,
   getExamResult,
   getMaxMarksForSubject,
+  resolveStudentPhotoUrl,
 } from '../services/dataService';
 import { useAuth } from '../context/AuthContext';
 import TestInsightsPanel from './TestInsightsPanel';
@@ -36,7 +37,9 @@ export default function StudentDashboard() {
   const [loading,   setLoading]   = useState(true);
 
   const rankingTestColumns = useMemo(
-    () => (data?.testColumns || []).filter((c) => !String(c).includes('_')),
+    () => (data?.testColumns || [])
+      .filter((c) => !String(c).includes('_'))
+      .sort((a, b) => String(b).localeCompare(String(a), undefined, { numeric: true, sensitivity: 'base' })),
     [data?.testColumns]
   );
   const [analysisTestKey, setAnalysisTestKey] = useState('');
@@ -46,7 +49,7 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     if (!rankingTestColumns.length) return;
-    setAnalysisTestKey((k) => k || rankingTestColumns[rankingTestColumns.length - 1]);
+    setAnalysisTestKey((k) => k || rankingTestColumns[0]);
   }, [rankingTestColumns]);
 
   useEffect(() => {
@@ -94,6 +97,9 @@ export default function StudentDashboard() {
   const stream    = profile?.stream || auth.stream || 'JEE';
   const streamCfg = getStreamConfig(stream);
   const schoolName = profile?.['10th SCHOOL NAME'] || profile?.['12th SCHOOL NAME'] || profile?.['10th SCHOOL'] || profile?.['12th SCHOOL'] || profile?.['SCHOOL NAME'] || profile?.SCHOOL || '';
+  const photoUrl = profile?.['STUDENT PHOTO URL'] || '';
+  const photoPrimary = resolveStudentPhotoUrl(photoUrl, 'primary');
+  const photoFallback = resolveStudentPhotoUrl(photoUrl, 'fallback');
 
   // Prefer backend chart; fallback to local computation
   const chartData = useMemo(() => {
@@ -277,16 +283,16 @@ export default function StudentDashboard() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
-                  background: '#eff6ff',
-                  border: '1px solid #bfdbfe',
+                  background: '#fdf4ff',
+                  border: '1px solid #f5d0fe',
                   borderRadius: 999,
                   padding: '4px 10px',
                   fontSize: 12,
-                  color: '#1a4fa0',
+                  color: '#a21caf',
                   fontWeight: 700,
                 }}
               >
-                <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#1a4fa0' }} />
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#a21caf' }} />
                 Total: {chartData[chartData.length - 1]?.Total ?? '—'}/{streamCfg.maxTotal}
               </span>
             </div>
@@ -295,8 +301,6 @@ export default function StudentDashboard() {
               <LineChart data={chartData} margin={{ top: 10, right: 18, left: -10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--gray-100)" />
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--gray-600)' }} />
-                <YAxis yAxisId="subject" tick={{ fontSize: 11, fill: 'var(--gray-400)' }} />
-                <YAxis yAxisId="total" orientation="right" tick={{ fontSize: 11, fill: '#1a4fa0' }} />
                 <Tooltip
                   formatter={(value, name) => {
                     if (name === 'Total') return [value ?? '—', `Total / ${streamCfg.maxTotal}`];
@@ -308,7 +312,6 @@ export default function StudentDashboard() {
                 {subjects.map((sub, i) => (
                   <Line
                     key={sub}
-                    yAxisId="subject"
                     type="monotone"
                     dataKey={sub}
                     stroke={SUBJECT_COLORS[i % SUBJECT_COLORS.length]}
@@ -319,10 +322,9 @@ export default function StudentDashboard() {
                   />
                 ))}
                 <Line
-                  yAxisId="total"
                   type="monotone"
                   dataKey="Total"
-                  stroke="#1a4fa0"
+                  stroke="#a21caf"
                   strokeWidth={3}
                   dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
                   activeDot={{ r: 6 }}
@@ -402,9 +404,26 @@ export default function StudentDashboard() {
   return (
     <div className="fade-in dashboard-page">
       <div className="page-header">
-        <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-          {getInitials(profile["STUDENT'S NAME"])}
-        </div>
+        {photoUrl ? (
+          <img
+            src={photoPrimary}
+            alt={profile["STUDENT'S NAME"]}
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              if (e.currentTarget.dataset.fallbackApplied === '1') {
+                e.currentTarget.style.display = 'none';
+                return;
+              }
+              e.currentTarget.dataset.fallbackApplied = '1';
+              e.currentTarget.src = photoFallback || photoUrl;
+            }}
+            style={{ width: 46, height: 46, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,.35)', flexShrink: 0 }}
+          />
+        ) : (
+          <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+            {getInitials(profile["STUDENT'S NAME"])}
+          </div>
+        )}
         <div>
           <h1>{profile["STUDENT'S NAME"]}</h1>
           <p>

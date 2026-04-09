@@ -301,121 +301,82 @@ export default function TestInsightsPanel({
         </div>
       </div>
 
-      <div className="card">
-        <div className="section-title">Centre rank — average total & qualification</div>
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Centre</th>
-                <th>Appeared</th>
-                <th>Qualified</th>
-                <th>Qual %</th>
-                {subjects.map((sub) => (
-                  <th key={sub}>Avg {sub}</th>
-                ))}
-                <th>Avg total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(insights.centreRows || []).map((row) => (
-                <tr key={row.code} style={rowHighlight(row.code)}>
-                  <td>{row.rank}</td>
-                  <td>
-                    <strong>{row.code}</strong>
-                    <div style={{ fontSize: 11, color: 'var(--gray-400)' }}>{centreLabel(row.code)}</div>
-                  </td>
-                  <td>{row.appeared}</td>
-                  <td>{row.qualified}</td>
-                  <td>{row.qualRate}%</td>
-                  {subjects.map((sub) => (
-                    <td key={sub}>{row.subjectAvgs?.[sub] ?? '—'}</td>
+      {!showStudentCard && (
+        <>
+          <div className="card">
+            <div className="section-title">Centre rank — average total & qualification</div>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Centre</th>
+                    <th>Appeared</th>
+                    <th>Qualified</th>
+                    <th>Qual %</th>
+                    {subjects.map((sub) => (
+                      <th key={sub}>Avg {sub}</th>
+                    ))}
+                    <th>Avg total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(insights.centreRows || []).map((row) => (
+                    <tr key={row.code} style={rowHighlight(row.code)}>
+                      <td>{row.rank}</td>
+                      <td>
+                        <strong>{row.code}</strong>
+                        <div style={{ fontSize: 11, color: 'var(--gray-400)' }}>{centreLabel(row.code)}</div>
+                      </td>
+                      <td>{row.appeared}</td>
+                      <td>{row.qualified}</td>
+                      <td>{row.qualRate}%</td>
+                      {subjects.map((sub) => (
+                        <td key={sub}>{row.subjectAvgs?.[sub] ?? '—'}</td>
+                      ))}
+                      <td><strong>{row.totalAvg}</strong></td>
+                    </tr>
                   ))}
-                  <td><strong>{row.totalAvg}</strong></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-      <div className="card">
-        <div className="section-title">
-          <TrendingDown size={16} color="var(--red)" aria-hidden="true" />
-          Bottom 5 centres — by avg total
-        </div>
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Centre</th>
-                <th>Avg total</th>
-                <th>Qual %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(insights.bottom5Centres || []).map((row) => (
-                <tr key={row.code} style={rowHighlight(row.code)}>
-                  <td>
-                    <strong>{row.code}</strong> — {centreLabel(row.code)}
-                  </td>
-                  <td>{row.totalAvg}</td>
-                  <td>{row.qualRate}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+          <div className="card">
+            <div className="section-title">
+              <TrendingDown size={16} color="var(--red)" aria-hidden="true" />
+              Bottom 5 centres — by avg total
+            </div>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Centre</th>
+                    <th>Avg total</th>
+                    <th>Qual %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(insights.bottom5Centres || []).map((row) => (
+                    <tr key={row.code} style={rowHighlight(row.code)}>
+                      <td>
+                        <strong>{row.code}</strong> — {centreLabel(row.code)}
+                      </td>
+                      <td>{row.totalAvg}</td>
+                      <td>{row.qualRate}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-      <div className="grid-2">
-        <div className="card">
-          <div className="section-title" style={{ fontSize: 14 }}>Not qualified (overall) — count by centre</div>
-          <p style={{ fontSize: 12, color: 'var(--gray-600)', marginBottom: 10 }}>Students who attempted but did not meet qualification rules.</p>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.8 }}>
-            {Object.entries(insights.notQualifiedOverall || {})
-              .filter(([, n]) => n > 0)
-              .sort((a, b) => b[1] - a[1])
-              .map(([code, n]) => (
-                <li key={code}>
-                  {code}: {n}
-                </li>
-              ))}
-            {!Object.values(insights.notQualifiedOverall || {}).some((n) => n > 0) && (
-              <li style={{ color: 'var(--gray-400)' }}>None</li>
-            )}
-          </ul>
-        </div>
-
-        <div className="card">
-          <div className="section-title" style={{ fontSize: 14 }}>Low qualification rate (≤ 50%)</div>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.8 }}>
-            {(insights.qualificationRateByCentre || [])
-              .filter((r) => r.qualRate <= 50)
-              .map((r) => (
-                <li key={r.code}>
-                  {r.code}: {r.qualRate}%
-                </li>
-              ))}
-            {!(insights.qualificationRateByCentre || []).some((r) => r.qualRate <= 50) && (
-              <li style={{ color: 'var(--gray-400)' }}>No centre at or below 50%</li>
-            )}
-          </ul>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="section-title">Below subject cutoff — count by centre</div>
-        <p style={{ fontSize: 12, color: 'var(--gray-600)', marginBottom: 12 }}>
-          Students with a subject mark below their stream&apos;s cutoff ({Math.round((cut?.subjectQualifyRatio ?? 0.35) * 100)}% of that subject&apos;s max — JEE vs NEET differ).
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-          {subjects.map((sub) => (
-            <div key={sub} style={{ background: 'var(--gray-50)', borderRadius: 8, padding: 12 }}>
-              <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--csrl-blue)' }}>{sub}</div>
-              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, lineHeight: 1.7 }}>
-                {Object.entries((insights.notQualifiedBySubject || {})[sub] || {})
+          <div className="grid-2">
+            <div className="card">
+              <div className="section-title" style={{ fontSize: 14 }}>Not qualified (overall) — count by centre</div>
+              <p style={{ fontSize: 12, color: 'var(--gray-600)', marginBottom: 10 }}>Students who attempted but did not meet qualification rules.</p>
+              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.8 }}>
+                {Object.entries(insights.notQualifiedOverall || {})
                   .filter(([, n]) => n > 0)
                   .sort((a, b) => b[1] - a[1])
                   .map(([code, n]) => (
@@ -423,14 +384,57 @@ export default function TestInsightsPanel({
                       {code}: {n}
                     </li>
                   ))}
-                {!Object.values((insights.notQualifiedBySubject || {})[sub] || {}).some((n) => n > 0) && (
+                {!Object.values(insights.notQualifiedOverall || {}).some((n) => n > 0) && (
                   <li style={{ color: 'var(--gray-400)' }}>None</li>
                 )}
               </ul>
             </div>
-          ))}
-        </div>
-      </div>
+
+            <div className="card">
+              <div className="section-title" style={{ fontSize: 14 }}>Low qualification rate (≤ 50%)</div>
+              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.8 }}>
+                {(insights.qualificationRateByCentre || [])
+                  .filter((r) => r.qualRate <= 50)
+                  .map((r) => (
+                    <li key={r.code}>
+                      {r.code}: {r.qualRate}%
+                    </li>
+                  ))}
+                {!(insights.qualificationRateByCentre || []).some((r) => r.qualRate <= 50) && (
+                  <li style={{ color: 'var(--gray-400)' }}>No centre at or below 50%</li>
+                )}
+              </ul>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="section-title">Below subject cutoff — count by centre</div>
+            <p style={{ fontSize: 12, color: 'var(--gray-600)', marginBottom: 12 }}>
+              Students with a subject mark below their stream&apos;s cutoff ({Math.round((cut?.subjectQualifyRatio ?? 0.35) * 100)}% of that subject&apos;s max — JEE vs NEET differ).
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+              {subjects.map((sub) => (
+                <div key={sub} style={{ background: 'var(--gray-50)', borderRadius: 8, padding: 12 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--csrl-blue)' }}>{sub}</div>
+                  <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, lineHeight: 1.7 }}>
+                    {Object.entries((insights.notQualifiedBySubject || {})[sub] || {})
+                      .filter(([, n]) => n > 0)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([code, n]) => (
+                        <li key={code}>
+                          {code}: {n}
+                        </li>
+                      ))}
+                    {!Object.values((insights.notQualifiedBySubject || {})[sub] || {}).some((n) => n > 0) && (
+                      <li style={{ color: 'var(--gray-400)' }}>None</li>
+                    )}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

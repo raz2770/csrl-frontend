@@ -42,12 +42,11 @@ const STUDENT_TEMPLATE_COLUMNS = [
 const TABS = [
   { key: 'leaderboard', Icon: Trophy,         label: 'Centre Leaderboard' },
   { key: 'overview',    Icon: LayoutDashboard, label: 'Dashboard'          },
+  { key: 'ranking',     Icon: TrendingUp,      label: 'Rankings'           },
   { key: 'insights',    Icon: BarChart3,       label: 'Test analysis'     },
   { key: 'students',    Icon: Users,           label: 'Students'           },
   { key: 'marks',       Icon: FileText,        label: 'Test Marks'         },
   { key: 'import',      Icon: Upload,          label: 'Import / Export'    },
-  { key: 'top30',       Icon: TrendingUp,      label: 'Top 30'             },
-  { key: 'bottom30',    Icon: TrendingDown,    label: 'Bottom 30'          },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -180,6 +179,7 @@ export default function AdminDashboard() {
 
   const [viewingStudentId, setViewingStudentId] = useState(null);
   const [selectedTestKey,  setSelectedTestKey]  = useState('');
+  const [manualTestOptions, setManualTestOptions] = useState([]);
 
   const [searchTerm,     setSearchTerm]     = useState('');
   const [filterCategory, setFilterCategory] = useState('ALL');
@@ -211,8 +211,10 @@ export default function AdminDashboard() {
     fetchGlobalData()
       .then((d) => {
         setData(d);
-        const rankingCols = (d.testColumns || []).filter((c) => !String(c).includes('_'));
-        const candidate   = rankingCols.length ? rankingCols[rankingCols.length - 1] : d.testColumns?.[0];
+        const rankingCols = (d.testColumns || [])
+          .filter((c) => !String(c).includes('_'))
+          .sort((a, b) => String(b).localeCompare(String(a), undefined, { numeric: true, sensitivity: 'base' }));
+        const candidate   = rankingCols.length ? rankingCols[0] : d.testColumns?.[0];
         if (candidate) setSelectedTestKey(candidate);
       })
       .catch((err) => setError('Failed to load dashboard data: ' + err.message))
@@ -259,8 +261,16 @@ export default function AdminDashboard() {
   // ── Derived data ───────────────────────────────────────────────────────────
 
   const rankingTestColumns = useMemo(
-    () => (data?.testColumns || []).filter((c) => !String(c).includes('_')),
+    () => (data?.testColumns || [])
+      .filter((c) => !String(c).includes('_'))
+      .sort((a, b) => String(b).localeCompare(String(a), undefined, { numeric: true, sensitivity: 'base' })),
     [data]
+  );
+
+  const allTestOptions = useMemo(
+    () => [...new Set([...manualTestOptions, ...rankingTestColumns])]
+      .sort((a, b) => String(b).localeCompare(String(a), undefined, { numeric: true, sensitivity: 'base' })),
+    [manualTestOptions, rankingTestColumns]
   );
 
   const filteredStudents = useMemo(() => {
@@ -304,6 +314,19 @@ export default function AdminDashboard() {
   }, [flatMarks, marksSearch, marksTestF, marksCentreF]);
 
   const uniqueMarkTests = useMemo(() => [...new Set(flatMarks.map((m) => m.test))].sort(), [flatMarks]);
+
+  const handleAddNewTestOption = () => {
+    const raw = window.prompt('Enter new test name (example: CAT-9(TEST))');
+    const next = String(raw || '').trim();
+    if (!next) return;
+    const exists = allTestOptions.some((t) => String(t).toLowerCase() === next.toLowerCase());
+    if (!exists) {
+      setManualTestOptions((prev) => [...prev, next]);
+      showToast(`Added test option: ${next}`, 'success');
+    }
+    setSelectedTestKey(next);
+    setUploadTestKey(next);
+  };
 
   const profileByRoll = useMemo(() => {
     const map = new Map();
@@ -473,7 +496,7 @@ export default function AdminDashboard() {
 
   const openImportModal = (mode) => {
     setImportMode(mode);
-    setUploadTestKey(selectedTestKey || data?.testColumns?.[0] || '');
+    setUploadTestKey(selectedTestKey || allTestOptions[0] || '');
     resetImportState();
   };
 
@@ -690,11 +713,19 @@ export default function AdminDashboard() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ fontSize: 13, color: 'var(--gray-600)' }}>Test:</span>
           <select className="input select" value={selectedTestKey} onChange={(e) => setSelectedTestKey(e.target.value)} style={{ width: 170, fontSize: 13 }}>
-            {rankingTestColumns.map((col) => <option key={col} value={col}>{col}</option>)}
+            {allTestOptions.map((col) => <option key={col} value={col}>{col}</option>)}
           </select>
+          <button type="button" className="btn btn-sm btn-outline" onClick={handleAddNewTestOption}>+ New Test</button>
         </div>
       </div>
       <CentreLeaderboard centreStats={centreBoard} selTest={selectedTestKey} />
+    </div>
+  );
+
+  const RankingsSection = () => (
+    <div className="grid-2">
+      <Top30Section />
+      <Bottom30Section />
     </div>
   );
 
@@ -971,7 +1002,7 @@ export default function AdminDashboard() {
           <div style={{ color: 'var(--gray-600)', fontFamily: 'monospace', fontSize: 11 }}>roll_number · marks/score</div>
           <div style={{ marginTop: 4, fontSize: 12, color: 'var(--gray-400)' }}>One column at a time (selected test).</div>
           <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {rankingTestColumns.slice(0, 8).map((t) => (
+            {allTestOptions.slice(0, 8).map((t) => (
               <button key={t} type="button" className="btn btn-ghost btn-sm" onClick={() => { setSelectedTestKey(t); setUploadTestKey(t); }}>{t}</button>
             ))}
           </div>
@@ -1035,7 +1066,7 @@ export default function AdminDashboard() {
                 <div className="form-group">
                   <label className="label" htmlFor="importTestKey">Test Column</label>
                   <select id="importTestKey" className="input select" value={uploadTestKey} onChange={(e) => setUploadTestKey(e.target.value)}>
-                    {rankingTestColumns.map((col) => <option key={col} value={col}>{col}</option>)}
+                    {allTestOptions.map((col) => <option key={col} value={col}>{col}</option>)}
                   </select>
                 </div>
               )}
@@ -1104,13 +1135,14 @@ export default function AdminDashboard() {
           </button>
           <button type="button" className="btn btn-warning btn-sm" onClick={() => openImportModal('marks')}><Upload size={13} /> Marks</button>
           <button type="button" className="btn btn-purple btn-sm" onClick={() => openImportModal('students')}><Users size={13} /> Upload Students</button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={handleAddNewTestOption}>+ New Test</button>
           <select
             className="input select"
             value={selectedTestKey}
             onChange={(e) => setSelectedTestKey(e.target.value)}
             style={{ background: 'rgba(255,255,255,.15)', color: '#fff', borderColor: 'rgba(255,255,255,.3)', width: 148, fontSize: 13 }}
           >
-            {rankingTestColumns.map((t) => <option key={t} value={t} style={{ color: '#333' }}>{t}</option>)}
+            {allTestOptions.map((t) => <option key={t} value={t} style={{ color: '#333' }}>{t}</option>)}
           </select>
         </div>
       </div>
@@ -1135,14 +1167,14 @@ export default function AdminDashboard() {
           {activePage === 'students'    && <StudentsSection />}
           {activePage === 'marks'       && <MarksSection />}
           {activePage === 'import'      && <ImportExportSection />}
-          {activePage === 'top30'       && <Top30Section />}
-          {activePage === 'bottom30'    && <Bottom30Section />}
+          {activePage === 'ranking'     && <RankingsSection />}
           {activePage === 'insights' && (
             <TestInsightsPanel
               insights={testInsights}
               loading={testInsightsLoading}
               error={testInsightsError}
               testKey={selectedTestKey}
+              hideSubjectAverages
             />
           )}
         </div>

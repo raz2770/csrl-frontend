@@ -9,7 +9,6 @@ import {
   FileText,
   Upload,
   TrendingUp,
-  TrendingDown,
   User,
   BarChart2,
   BarChart3,
@@ -20,21 +19,19 @@ const ADMIN_NAV = [
   { section: 'Overview' },
   { key: 'leaderboard', Icon: Trophy,         label: 'Centre Leaderboard' },
   { key: 'overview',    Icon: LayoutDashboard, label: 'Dashboard'          },
+  { key: 'ranking',     Icon: TrendingUp,      label: 'Rankings'           },
   { key: 'insights',    Icon: BarChart3,       label: 'Test analysis'      },
   { section: 'Data Management' },
   { key: 'students',    Icon: Users,           label: 'Students'           },
   { key: 'marks',       Icon: FileText,        label: 'Test Marks'         },
   { section: 'Import' },
   { key: 'import',      Icon: Upload,          label: 'Import Excel'       },
-  { section: 'Rankings' },
-  { key: 'top30',       Icon: TrendingUp,      label: 'Top 30'             },
-  { key: 'bottom30',    Icon: TrendingDown,    label: 'Bottom 30'          },
 ];
 
 const CENTRE_NAV = [
   { key: 'overview',   Icon: LayoutDashboard, label: 'Overview'  },
-  { key: 'insights',   Icon: BarChart3,       label: 'Test analysis' },
   { key: 'topbottom',  Icon: Trophy,          label: 'Rankings'  },
+  { key: 'insights',   Icon: BarChart3,       label: 'Test analysis' },
   { key: 'students',   Icon: Users,           label: 'Students'  },
 ];
 

@@ -225,7 +225,6 @@ export default function Login() {
             paddingTop: 12,
           }}>
             Developed by <strong style={{ color: '#1a4fa0' }}>Ajaya Kumar</strong> — Trainee Faculty, CSRL
-            <div style={{ marginTop: 3, fontSize: 11 }}>OIL India · 2024–25</div>
           </div>
         </div>
       </div>
