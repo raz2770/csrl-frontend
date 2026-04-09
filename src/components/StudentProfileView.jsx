@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getJeePercentile, getNeetScore, parseTestColumn } from '../services/dataService';
+import { getJeePercentile, getNeetScore, parseTestColumn, resolveStudentPhotoUrl } from '../services/dataService';
 
 function InfoRow({ label, value }) {
   return (
@@ -73,6 +73,8 @@ export default function StudentProfileView({ profile, studentTests, testColumns 
   if (!profile) return <div style={{ padding: '32px', textAlign: 'center', color: 'var(--gray-400)' }}>Loading profile...</div>;
 
   const photo         = profile['STUDENT PHOTO URL'];
+  const photoPrimary  = resolveStudentPhotoUrl(photo, 'primary');
+  const photoFallback = resolveStudentPhotoUrl(photo, 'fallback');
   const jeePercentile = getJeePercentile(profile);
   const neetScore     = getNeetScore(profile);
   const examLabel     = stream === 'NEET' ? 'NEET Score' : 'JEE Percentile';
@@ -90,7 +92,18 @@ export default function StudentProfileView({ profile, studentTests, testColumns 
       {/* Banner */}
       <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
         {photo
-          ? <img src={photo} alt={profile["STUDENT'S NAME"]} referrerPolicy="no-referrer"
+          ? <img
+              src={photoPrimary}
+              alt={profile["STUDENT'S NAME"]}
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                if (e.currentTarget.dataset.fallbackApplied === '1') {
+                  e.currentTarget.style.display = 'none';
+                  return;
+                }
+                e.currentTarget.dataset.fallbackApplied = '1';
+                e.currentTarget.src = photoFallback || photo;
+              }}
               style={{ width: 96, height: 96, borderRadius: 12, objectFit: 'cover', border: '2px solid var(--gray-100)', flexShrink: 0 }} />
           : <div style={{ width: 96, height: 96, borderRadius: 12, background: 'var(--csrl-blue-light)', color: 'var(--csrl-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, fontWeight: 700, flexShrink: 0 }}>
               {(profile["STUDENT'S NAME"] || '?')[0]}

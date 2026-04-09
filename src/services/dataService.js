@@ -65,6 +65,35 @@ const SUBJECT_ALIASES = {
   ZOO: 'Zoology',
 };
 
+// ── Image URL helpers ─────────────────────────────────────────────────────────
+
+export function extractGoogleDriveFileId(url) {
+  const raw = String(url || '').trim();
+  if (!raw) return '';
+
+  const fromFilePath = raw.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fromFilePath?.[1]) return fromFilePath[1];
+
+  const fromQuery = raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (fromQuery?.[1]) return fromQuery[1];
+
+  return '';
+}
+
+export function resolveStudentPhotoUrl(url, variant = 'primary') {
+  const raw = String(url || '').trim();
+  if (!raw) return '';
+
+  const id = extractGoogleDriveFileId(raw);
+  if (!id) return raw;
+
+  if (variant === 'fallback') {
+    return `https://lh3.googleusercontent.com/d/${id}=s1000`;
+  }
+
+  return `https://drive.google.com/thumbnail?id=${id}&sz=w1000`;
+}
+
 // ── Column parsing ─────────────────────────────────────────────────────────────
 
 export function parseTestColumn(col) {

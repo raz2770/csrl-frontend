@@ -96,10 +96,42 @@ export default function StudentDashboard() {
   const schoolName = profile?.['10th SCHOOL NAME'] || profile?.['12th SCHOOL NAME'] || profile?.['10th SCHOOL'] || profile?.['12th SCHOOL'] || profile?.['SCHOOL NAME'] || profile?.SCHOOL || '';
 
   // Prefer backend chart; fallback to local computation
-  const chartData = useMemo(
-    () => chart?.chartData ?? buildStudentChartData(studentTests, testColumns),
-    [chart, studentTests, testColumns]
-  );
+  const chartData = useMemo(() => {
+    const rawRows = chart?.chartData ?? buildStudentChartData(studentTests, testColumns);
+
+    const toNum = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    return (rawRows || []).map((row) => {
+      const normalized = { ...row };
+
+      if (stream === 'NEET') {
+        const physics = toNum(normalized.Physics);
+        const chemistry = toNum(normalized.Chemistry);
+        const biology = toNum(normalized.Biology);
+        const botany = toNum(normalized.Botany);
+        const zoology = toNum(normalized.Zoology);
+
+        const mergedBiology = biology ?? ((botany ?? 0) + (zoology ?? 0) || null);
+        normalized.Biology = mergedBiology;
+        delete normalized.Botany;
+        delete normalized.Zoology;
+
+        const parts = [physics, chemistry, mergedBiology].filter((v) => v !== null);
+        normalized.Total = parts.length ? parts.reduce((s, v) => s + v, 0) : null;
+      } else {
+        const physics = toNum(normalized.Physics);
+        const chemistry = toNum(normalized.Chemistry);
+        const math = toNum(normalized.Math);
+        const parts = [physics, chemistry, math].filter((v) => v !== null);
+        normalized.Total = parts.length ? parts.reduce((s, v) => s + v, 0) : null;
+      }
+
+      return normalized;
+    });
+  }, [chart, studentTests, testColumns, stream]);
 
   // Detected from test performance only — never profile manual fields
   const weakSubject = useMemo(
@@ -108,8 +140,8 @@ export default function StudentDashboard() {
   );
 
   const subjects = useMemo(
-    () => [...new Set(chartData.flatMap((row) => Object.keys(row).filter((k) => k !== 'name' && k !== 'Total')))],
-    [chartData]
+    () => streamCfg.subjects.filter((sub) => chartData.some((row) => row[sub] != null)),
+    [chartData, streamCfg.subjects]
   );
 
   const latestTotal = useMemo(() => {
