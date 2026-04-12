@@ -322,7 +322,7 @@ export default function StudentDashboard() {
             </div>
 
             <ResponsiveContainer width="100%" height={340}>
-              <LineChart data={chartData} margin={{ top: 10, right: 18, left: 25, bottom: 70 }}>
+              <LineChart data={chartData} margin={{ top: 10, right: 18, left: 45, bottom: 75 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--gray-100)" />
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--gray-600)' }} interval={0} angle={-35} textAnchor="end" />
                 <Tooltip
