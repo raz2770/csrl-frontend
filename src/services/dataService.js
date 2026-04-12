@@ -171,6 +171,11 @@ async function apiFetch(path, opts = {}) {
     url = `${API_BASE}${normalizedPath}`;
   }
 
+  // Bypass browser caching for GET requests to prevent stale UI during CRUD operations
+  if (method.toUpperCase() === 'GET') {
+    url += url.includes('?') ? `&_t=${Date.now()}` : `?_t=${Date.now()}`;
+  }
+
   const res = await fetch(url, {
     method,
     headers,
