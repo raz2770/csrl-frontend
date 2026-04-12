@@ -189,7 +189,7 @@ export default function StudentProfileView({ profile, studentTests, testColumns 
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ left: -20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--gray-100)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--gray-400)', fontSize: 11 }} angle={-35} textAnchor="end" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--gray-400)', fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--gray-400)', fontSize: 11 }} width={28} />
                 <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: 'var(--shadow-lg)', fontSize: 12 }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />

@@ -57,13 +57,20 @@ export function getMaxMarksForSubject(streamCfg, subject) {
 }
 
 const SUBJECT_ALIASES = {
-  PHY: 'Physics',
-  CHE: 'Chemistry',
-  MAT: 'Math',
-  BIO: 'Biology',
-  BOT: 'Botany',
-  ZOO: 'Zoology',
+  PHY: 'Physics', PHYSICS: 'Physics',
+  CHE: 'Chemistry', CHEM: 'Chemistry', CHEMISTRY: 'Chemistry', CHEMITRY: 'Chemistry',
+  MAT: 'Math', MATH: 'Math', MATHS: 'Math', MATHEMATICS: 'Math',
+  BIO: 'Biology', BIOLOGY: 'Biology',
+  BOT: 'Botany', BOTANY: 'Botany',
+  ZOO: 'Zoology', ZOOLOGY: 'Zoology',
 };
+
+function normalizeSubject(sub) {
+  const token = String(sub || '').trim().toUpperCase();
+  if (SUBJECT_ALIASES[token]) return SUBJECT_ALIASES[token];
+  if (!sub) return 'Total';
+  return sub.charAt(0).toUpperCase() + sub.slice(1).toLowerCase();
+}
 
 // ── Image URL helpers ─────────────────────────────────────────────────────────
 
@@ -102,7 +109,7 @@ export function parseTestColumn(col) {
   // New format: CAT-1(TEST)_Physics
   const underscored = raw.match(/^(.+)_([^_]+)$/);
   if (underscored) {
-    return { testName: underscored[1].trim(), subject: underscored[2].trim(), isTotal: false };
+    return { testName: underscored[1].trim(), subject: normalizeSubject(underscored[2]), isTotal: false };
   }
 
   // Legacy format: PHY Test 1

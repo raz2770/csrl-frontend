@@ -126,13 +126,37 @@ export default function StudentDashboard() {
         delete normalized.Zoology;
 
         const parts = [physics, chemistry, mergedBiology].filter((v) => v !== null);
-        normalized.Total = parts.length ? parts.reduce((s, v) => s + v, 0) : null;
+        const computedTotal = parts.length > 0 ? parts.reduce((s, v) => s + v, 0) : null;
+        
+        // Handle Absent explicitly
+        const isAbsent = ['a', 'A', 'absent', 'Absent'].includes(String(row.Total).trim()) ||
+          (['a', 'A', 'absent', 'Absent'].includes(String(row.Physics).trim()) &&
+           ['a', 'A', 'absent', 'Absent'].includes(String(row.Chemistry).trim()) &&
+           (['a', 'A', 'absent', 'Absent'].includes(String(row.Biology).trim()) || ['a', 'A', 'absent', 'Absent'].includes(String(row.Botany).trim())));
+        
+        if (isAbsent) {
+          normalized.Total = 'Absent';
+        } else {
+          normalized.Total = computedTotal !== null ? computedTotal : (row.Total ?? null);
+        }
       } else {
         const physics = toNum(normalized.Physics);
         const chemistry = toNum(normalized.Chemistry);
         const math = toNum(normalized.Math);
         const parts = [physics, chemistry, math].filter((v) => v !== null);
-        normalized.Total = parts.length ? parts.reduce((s, v) => s + v, 0) : null;
+        const computedTotal = parts.length > 0 ? parts.reduce((s, v) => s + v, 0) : null;
+        
+        // Handle Absent explicitly
+        const isAbsent = ['a', 'A', 'absent', 'Absent'].includes(String(row.Total).trim()) ||
+          (['a', 'A', 'absent', 'Absent'].includes(String(row.Physics).trim()) &&
+           ['a', 'A', 'absent', 'Absent'].includes(String(row.Chemistry).trim()) &&
+           ['a', 'A', 'absent', 'Absent'].includes(String(row.Math).trim()));
+        
+        if (isAbsent) {
+          normalized.Total = 'Absent';
+        } else {
+          normalized.Total = computedTotal !== null ? computedTotal : (row.Total ?? null);
+        }
       }
 
       return normalized;
@@ -300,7 +324,7 @@ export default function StudentDashboard() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData} margin={{ top: 10, right: 18, left: -10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--gray-100)" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--gray-600)' }} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--gray-600)' }} interval={0} />
                 <Tooltip
                   formatter={(value, name) => {
                     if (name === 'Total') return [value ?? '—', `Total / ${streamCfg.maxTotal}`];
@@ -370,11 +394,15 @@ export default function StudentDashboard() {
                   <td><strong>{row.name}</strong></td>
                   {subScores.map((v, i) => (
                     <td key={i} style={{ color: v === '—' ? 'var(--gray-300)' : 'inherit' }}>
-                      {v !== '—' ? `${v}/${getMaxMarksForSubject(streamCfg, streamCfg.subjects[i])}` : '—'}
+                      {v !== '—' && v !== 'A' && v !== 'a' && v !== 'Absent' ? `${v}/${getMaxMarksForSubject(streamCfg, streamCfg.subjects[i])}` : v === '—' ? '—' : 'Absent'}
                     </td>
                   ))}
-                  <td><strong style={{ color: '#1a4fa0' }}>{total ?? '—'}/{maxTot}</strong></td>
-                  <td><span className={`chip ${pct >= 60 ? 'chip-good' : 'chip-weak'}`}>{pct}%</span></td>
+                  <td>
+                    <strong style={{ color: total === 'Absent' ? 'var(--red)' : '#1a4fa0' }}>
+                      {total === 'Absent' ? 'Absent' : `${total ?? '—'}/${maxTot}`}
+                    </strong>
+                  </td>
+                  <td><span className={`chip ${total === 'Absent' ? 'chip-weak' : pct >= 60 ? 'chip-good' : 'chip-weak'}`}>{total === 'Absent' ? '—' : `${pct}%`}</span></td>
                 </tr>
               );
             })}

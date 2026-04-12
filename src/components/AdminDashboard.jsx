@@ -204,6 +204,10 @@ export default function AdminDashboard() {
   const [testInsights, setTestInsights] = useState(null);
   const [testInsightsLoading, setTestInsightsLoading] = useState(false);
   const [testInsightsError, setTestInsightsError] = useState('');
+  
+  // Trigger to refetch backend analytics
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const triggerRefresh = () => setRefreshTrigger((prev) => prev + 1);
 
   // ── Bootstrap ──────────────────────────────────────────────────────────────
 
@@ -215,15 +219,15 @@ export default function AdminDashboard() {
           .filter((c) => !String(c).includes('_'))
           .sort((a, b) => String(b).localeCompare(String(a), undefined, { numeric: true, sensitivity: 'base' }));
         const candidate   = rankingCols.length ? rankingCols[0] : d.testColumns?.[0];
-        if (candidate) setSelectedTestKey(candidate);
+        if (candidate && !selectedTestKey) setSelectedTestKey(candidate);
       })
       .catch((err) => setError('Failed to load dashboard data: ' + err.message))
       .finally(() => setLoading(false));
 
     fetchOverview(null).then(setOverview).catch(() => null);
-  }, []);
+  }, [refreshTrigger]);
 
-  // ── Reload backend analytics when test key changes ─────────────────────────
+  // ── Reload backend analytics when test key changes or data refreshes ──
 
   useEffect(() => {
     if (!selectedTestKey) return;
@@ -236,7 +240,7 @@ export default function AdminDashboard() {
       setBottomRanked(bottom.ranked || []);
       setCentreBoard(Array.isArray(board) ? board : []);
     });
-  }, [selectedTestKey]);
+  }, [selectedTestKey, refreshTrigger]);
 
   useEffect(() => {
     if (activePage !== 'insights' || !selectedTestKey) return undefined;
@@ -256,7 +260,7 @@ export default function AdminDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [activePage, selectedTestKey]);
+  }, [activePage, selectedTestKey, refreshTrigger]);
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
@@ -341,6 +345,7 @@ export default function AdminDashboard() {
     try {
       const result = await addStudentApi(null, form);
       setData((d) => ({ ...d, profiles: [...d.profiles, result.student] }));
+      triggerRefresh();
       setModalMode(null);
       showToast('Student added successfully.', 'success');
     } catch (e) {
@@ -355,6 +360,7 @@ export default function AdminDashboard() {
     try {
       const result = await updateStudentApi(null, modalStudent.ROLL_KEY, form);
       setData((d) => ({ ...d, profiles: d.profiles.map((p) => p.ROLL_KEY === modalStudent.ROLL_KEY ? result.student : p) }));
+      triggerRefresh();
       setModalMode(null);
       showToast('Student updated successfully.', 'success');
     } catch (e) {
@@ -373,6 +379,7 @@ export default function AdminDashboard() {
         profiles: d.profiles.filter((p) => p.ROLL_KEY !== rollKey),
         tests:    d.tests.filter((t)    => t.ROLL_KEY !== rollKey),
       }));
+      triggerRefresh();
       showToast(`Student ${rollKey} deleted.`, 'success');
     } catch (e) {
       showToast(e.message, 'error');
@@ -383,7 +390,7 @@ export default function AdminDashboard() {
     setModalLoading(true);
     try {
       const result = await upsertTestScoresApi(null, modalStudent.ROLL_KEY, scores, modalStudent.centerCode);
-      setData(await fetchGlobalData());
+      triggerRefresh();
       setModalMode(null);
       showToast('Test scores saved.', 'success');
     } catch (e) {
@@ -553,7 +560,7 @@ export default function AdminDashboard() {
           if (exists) { await updateStudentApi(null, row.payload.ROLL_KEY, row.payload); updateCount++; }
           else        { await addStudentApi(null, row.payload); newCount++; }
         }
-        setData(await fetchGlobalData());
+        triggerRefresh();
         showToast(`Students imported: ${newCount} new, ${updateCount} updated.`, 'success');
       } else {
         for (const row of valid) {
@@ -564,7 +571,7 @@ export default function AdminDashboard() {
           if (prev === undefined || prev === null || prev === '') newCount++;
           else updateCount++;
         }
-        setData(await fetchGlobalData());
+        triggerRefresh();
         showToast(`Marks imported: ${newCount} new, ${updateCount} updated.`, 'success');
       }
       closeImportModal();
