@@ -55,6 +55,14 @@ function normalizeCellValue(v) {
   return (v === undefined || v === null) ? '' : String(v).trim();
 }
 
+function normalizeRollKey(v) {
+  return normalizeCellValue(v).replace(/\.0+$/, '').toUpperCase();
+}
+
+function normalizeCenterCode(v) {
+  return normalizeCellValue(v).toUpperCase();
+}
+
 function getRowField(row, keys) {
   for (const key of keys) {
     if (row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key];
@@ -63,9 +71,9 @@ function getRowField(row, keys) {
 }
 
 function mapExcelStudentToProfile(row) {
-  const roll   = normalizeCellValue(getRowField(row, ['roll_number', 'ROLL_NUMBER', 'Roll Number', 'roll', 'ROLL_KEY'])).toUpperCase();
+  const roll   = normalizeRollKey(getRowField(row, ['roll_number', 'ROLL_NUMBER', 'Roll Number', 'roll', 'ROLL_KEY']));
   const name   = normalizeCellValue(getRowField(row, ['name', 'Name', "STUDENT'S NAME"]));
-  const centre = normalizeCellValue(getRowField(row, ['centre', 'Center', 'center', 'centerCode'])).toUpperCase();
+  const centre = normalizeCenterCode(getRowField(row, ['centre', 'Center', 'center', 'centerCode']));
   const stream = normalizeCellValue(getRowField(row, ['stream', 'Stream', 'STREAM'])).toUpperCase() || 'JEE';
 
   return {
@@ -96,7 +104,7 @@ function mapExcelStudentToProfile(row) {
 }
 
 function mapExcelMarkRow(row, testKey) {
-  const roll = normalizeCellValue(getRowField(row, ['roll_number', 'ROLL_NUMBER', 'Roll Number', 'roll', 'ROLL_KEY'])).toUpperCase();
+  const roll = normalizeRollKey(getRowField(row, ['roll_number', 'ROLL_NUMBER', 'Roll Number', 'roll', 'ROLL_KEY']));
   return {
     roll,
     test:  testKey,
@@ -519,7 +527,7 @@ export default function AdminDashboard() {
       if (!rows.length) { setUploadError('The file contains no data rows.'); setUploadPreview([]); return; }
 
       if (importMode === 'students') {
-        const existingRolls = new Set((data?.profiles || []).map((p) => p.ROLL_KEY?.toUpperCase()));
+        const existingRolls = new Set((data?.profiles || []).map((p) => normalizeRollKey(p.ROLL_KEY)));
         setUploadPreview(rows.map((row, idx) => {
           const mapped = mapExcelStudentToProfile(row);
           if (!mapped.ROLL_KEY)             return { row: idx + 2, status: 'err', reason: 'Missing roll_number' };
@@ -529,8 +537,8 @@ export default function AdminDashboard() {
           return { row: idx + 2, status: exists ? 'update' : 'new', reason: exists ? 'Will update' : 'Will insert', roll: mapped.ROLL_KEY, name: mapped["STUDENT'S NAME"], centre: mapped.centerCode, payload: mapped };
         }));
       } else {
-        const existingRolls = new Set((data?.profiles || []).map((p) => p.ROLL_KEY?.toUpperCase()));
-        const existingMarks = new Set((data?.tests || []).filter((t) => t[uploadTestKey] !== undefined).map((t) => t.ROLL_KEY?.toUpperCase()));
+        const existingRolls = new Set((data?.profiles || []).map((p) => normalizeRollKey(p.ROLL_KEY)));
+        const existingMarks = new Set((data?.tests || []).filter((t) => t[uploadTestKey] !== undefined).map((t) => normalizeRollKey(t.ROLL_KEY)));
         setUploadPreview(rows.map((row, idx) => {
           const mapped = mapExcelMarkRow(row, uploadTestKey);
           if (!mapped.roll)                    return { row: idx + 2, status: 'err', reason: 'Missing roll_number' };
@@ -556,7 +564,11 @@ export default function AdminDashboard() {
       let newCount = 0, updateCount = 0;
       if (importMode === 'students') {
         for (const row of valid) {
-          const exists = data.profiles.find((p) => p.ROLL_KEY === row.payload.ROLL_KEY);
+          const rowRoll = normalizeRollKey(row.payload.ROLL_KEY);
+          const rowCenter = normalizeCenterCode(row.payload.centerCode);
+          const exists = data.profiles.find(
+            (p) => normalizeRollKey(p.ROLL_KEY) === rowRoll && normalizeCenterCode(p.centerCode) === rowCenter
+          );
           if (exists) { await updateStudentApi(null, row.payload.ROLL_KEY, row.payload); updateCount++; }
           else        { await addStudentApi(null, row.payload); newCount++; }
         }
@@ -564,10 +576,11 @@ export default function AdminDashboard() {
         showToast(`Students imported: ${newCount} new, ${updateCount} updated.`, 'success');
       } else {
         for (const row of valid) {
-          const existing   = data.tests.find((t) => t.ROLL_KEY === row.payload.roll);
-          const profile    = data.profiles.find((p) => p.ROLL_KEY === row.payload.roll);
+          const rowRoll = normalizeRollKey(row.payload.roll);
+          const existing = data.tests.find((t) => normalizeRollKey(t.ROLL_KEY) === rowRoll);
+          const profile = data.profiles.find((p) => normalizeRollKey(p.ROLL_KEY) === rowRoll);
           const prev       = existing?.[uploadTestKey];
-          await upsertTestScoresApi(null, row.payload.roll, { [uploadTestKey]: row.payload.value }, profile?.centerCode);
+          await upsertTestScoresApi(null, rowRoll, { [uploadTestKey]: row.payload.value }, profile?.centerCode);
           if (prev === undefined || prev === null || prev === '') newCount++;
           else updateCount++;
         }
