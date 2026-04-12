@@ -383,12 +383,7 @@ export default function AdminDashboard() {
     setModalLoading(true);
     try {
       const result = await upsertTestScoresApi(null, modalStudent.ROLL_KEY, scores, modalStudent.centerCode);
-      setData((d) => ({
-        ...d,
-        tests: d.tests.find((t) => t.ROLL_KEY === modalStudent.ROLL_KEY)
-          ? d.tests.map((t) => t.ROLL_KEY === modalStudent.ROLL_KEY ? result.testRecord : t)
-          : [...d.tests, result.testRecord],
-      }));
+      setData(await fetchGlobalData());
       setModalMode(null);
       showToast('Test scores saved.', 'success');
     } catch (e) {

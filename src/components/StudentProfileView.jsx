@@ -46,10 +46,13 @@ export default function StudentProfileView({ profile, studentTests, testColumns 
     // Compute total where missing
     Object.values(testsMap).forEach((t) => {
       if (t.total !== null) return;
-      const computed = Object.values(t.marks)
-        .filter((v) => typeof v === 'number')
-        .reduce((sum, v) => sum + v, 0);
-      t.total = computed || null;
+      
+      const numMarks = Object.values(t.marks).filter((v) => typeof v === 'number');
+      if (numMarks.length > 0) {
+        t.total = numMarks.reduce((sum, v) => sum + v, 0);
+      } else if (Object.values(t.marks).some((v) => v === 'A')) {
+        t.total = 'Absent';
+      }
     });
 
     const mappedTestList = Object.values(testsMap)
