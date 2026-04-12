@@ -321,10 +321,10 @@ export default function StudentDashboard() {
               </span>
             </div>
 
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData} margin={{ top: 10, right: 18, left: -10, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={340}>
+              <LineChart data={chartData} margin={{ top: 10, right: 18, left: -10, bottom: 65 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--gray-100)" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--gray-600)' }} interval={0} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--gray-600)' }} interval={0} angle={-35} textAnchor="end" />
                 <Tooltip
                   formatter={(value, name) => {
                     if (name === 'Total') return [value ?? '—', `Total / ${streamCfg.maxTotal}`];
